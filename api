@@ -1,0 +1,11 @@
+import axios from "axios";
+
+const API_BASE_URL = "http://localhost:8080/api/personal-details"; // backend base URL
+
+export const savePersonalDetails = async (details) => {
+  return axios.post(API_BASE_URL, details);
+};
+
+export const getPersonalDetails = async (id) => {
+  return axios.get(`${API_BASE_URL}/${id}`);
+};
