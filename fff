@@ -28,13 +28,15 @@ const PersonalDetails = () => {
       photograph: null,
       aadhaarCard: null,
       panCard: null,
-      governmentID: null,
+      governmentID: null, // Passport or Voter ID or Driver License
     },
   });
 
   const [isSameAddress, setIsSameAddress] = useState(false);
-  const [activeTab, setActiveTab] = useState("personal"); // 'personal' or 'attachments'
+  const [activeTab, setActiveTab] = useState("personal");
+  const navigate = useNavigate();
 
+  // Handle text/select inputs
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({
@@ -43,6 +45,7 @@ const PersonalDetails = () => {
     }));
   };
 
+  // Handle file uploads
   const handleFileChange = (e, attachmentName) => {
     const file = e.target.files[0];
     setFormData((prevData) => ({
@@ -54,6 +57,7 @@ const PersonalDetails = () => {
     }));
   };
 
+  // Copy current address to permanent if checked
   const handleAddressToggle = () => {
     setIsSameAddress(!isSameAddress);
     if (!isSameAddress) {
@@ -64,101 +68,73 @@ const PersonalDetails = () => {
     }
   };
 
-  // 🔹 UPDATED: Submit form to Spring Boot backend
+  // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const payload = {
-      userId: 123, // TODO: Replace with logged-in userId
-      firstName: formData.firstName,
-      middleName: formData.middleName,
-      lastName: formData.lastName,
-      genderId: formData.gender,
-      maritalStatus: formData.maritalStatus,
-      phoneNumber: formData.phoneNumber,
-      alternatePhone: "", // optional, you can add later
-      currentAddress: formData.currentAddress,
-      permanentAddress: formData.permanentAddress,
-      aadhaarNumber: formData.aadhaarNumber,
-      panNumber: formData.panNumber,
-      dateOfBirth: "1995-01-01", // later replace with a date picker
-    };
+    console.log("Submitting form:", formData);
 
     try {
       const response = await fetch("http://localhost:8080/api/personal-details", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to save personal details");
+      if (response.ok) {
+        alert("Personal details submitted successfully!");
+        navigate("/employmentdetails");
+      } else {
+        alert("Failed to submit. Status: " + response.status);
       }
-
-      const data = await response.json();
-      console.log("✅ Saved personal details:", data);
-
-      // Navigate to next page
-      navigate("/employmentdetails");
     } catch (error) {
-      console.error("❌ Error:", error);
-      alert("Something went wrong while saving personal details");
+      console.error("Error submitting form:", error);
+      alert("Something went wrong. Check console for details.");
     }
   };
 
+  // Tab 1: Personal Details
   const renderPersonalDetails = () => (
     <section>
       <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
         <User className="w-5 h-5 text-indigo-600" /> Applicant Information
       </h2>
+
+      {/* Name fields */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-            First Name
-          </label>
-          <input
-            type="text"
-            id="firstName"
-            name="firstName"
-            placeholder="John"
-            value={formData.firstName}
-            onChange={handleInputChange}
-            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          />
-        </div>
-        <div>
-          <label htmlFor="middleName" className="block text-sm font-medium text-gray-700">
-            Middle Name (Optional)
-          </label>
-          <input
-            type="text"
-            id="middleName"
-            name="middleName"
-            placeholder="Smith"
-            value={formData.middleName}
-            onChange={handleInputChange}
-            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          />
-        </div>
-        <div>
-          <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-            Last Name
-          </label>
-          <input
-            type="text"
-            id="lastName"
-            name="lastName"
-            placeholder="Doe"
-            value={formData.lastName}
-            onChange={handleInputChange}
-            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          />
-        </div>
+        {["firstName", "middleName", "lastName"].map((field, idx) => (
+          <div key={idx}>
+            <label
+              htmlFor={field}
+              className="block text-sm font-medium text-gray-700"
+            >
+              {field === "firstName"
+                ? "First Name"
+                : field === "middleName"
+                ? "Middle Name (Optional)"
+                : "Last Name"}
+            </label>
+            <input
+              type="text"
+              id={field}
+              name={field}
+              placeholder={field === "firstName" ? "John" : field === "middleName" ? "Smith" : "Doe"}
+              value={formData[field]}
+              onChange={handleInputChange}
+              className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+        ))}
       </div>
 
+      {/* Gender + Marital Status */}
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="gender" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="gender"
+            className="block text-sm font-medium text-gray-700"
+          >
             Gender
           </label>
           <select
@@ -174,8 +150,12 @@ const PersonalDetails = () => {
             <option value="other">Other</option>
           </select>
         </div>
+
         <div>
-          <label htmlFor="maritalStatus" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="maritalStatus"
+            className="block text-sm font-medium text-gray-700"
+          >
             Marital Status
           </label>
           <select
@@ -194,9 +174,13 @@ const PersonalDetails = () => {
         </div>
       </div>
 
+      {/* Phone + Email */}
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="phoneNumber"
+            className="block text-sm font-medium text-gray-700"
+          >
             Phone Number
           </label>
           <input
@@ -209,8 +193,12 @@ const PersonalDetails = () => {
             className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           />
         </div>
+
         <div>
-          <label htmlFor="emailAddress" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="emailAddress"
+            className="block text-sm font-medium text-gray-700"
+          >
             Email Address
           </label>
           <input
@@ -225,9 +213,13 @@ const PersonalDetails = () => {
         </div>
       </div>
 
+      {/* Aadhaar + PAN */}
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="aadhaarNumber" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="aadhaarNumber"
+            className="block text-sm font-medium text-gray-700"
+          >
             Aadhaar Card Number
           </label>
           <input
@@ -240,8 +232,12 @@ const PersonalDetails = () => {
             className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           />
         </div>
+
         <div>
-          <label htmlFor="panNumber" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="panNumber"
+            className="block text-sm font-medium text-gray-700"
+          >
             PAN Card Number
           </label>
           <input
@@ -256,100 +252,117 @@ const PersonalDetails = () => {
         </div>
       </div>
 
+      {/* Address */}
       <div className="mt-4 space-y-4">
         <div>
-          <label htmlFor="currentAddress" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="currentAddress"
+            className="block text-sm font-medium text-gray-700"
+          >
             Current Address
           </label>
           <textarea
             id="currentAddress"
             name="currentAddress"
-            placeholder="Current Address"
             rows="3"
             value={formData.currentAddress}
             onChange={handleInputChange}
             className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          ></textarea>
+          />
         </div>
+
         <div className="flex items-center">
           <input
             id="same-address"
-            name="same-address"
             type="checkbox"
             checked={isSameAddress}
             onChange={handleAddressToggle}
-            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+            className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
           />
-          <label htmlFor="same-address" className="ml-2 block text-sm text-gray-900">
+          <label
+            htmlFor="same-address"
+            className="ml-2 block text-sm text-gray-900"
+          >
             Permanent Address is the same as Current Address
           </label>
         </div>
+
         {!isSameAddress && (
           <div>
-            <label htmlFor="permanentAddress" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="permanentAddress"
+              className="block text-sm font-medium text-gray-700"
+            >
               Permanent Address
             </label>
             <textarea
               id="permanentAddress"
               name="permanentAddress"
-              placeholder="Permanent Address"
               rows="3"
               value={formData.permanentAddress}
               onChange={handleInputChange}
               className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            ></textarea>
+            />
           </div>
         )}
       </div>
     </section>
   );
 
+  // Tab 2: Attachments
   const renderAttachments = () => (
     <section>
       <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
         <Upload className="w-5 h-5 text-indigo-600" /> Required Attachments
       </h2>
       <p className="text-sm text-gray-600 mb-4">
-        Please upload the required documents below. Accepted formats: PDF, JPG, PNG.
+        Please upload the required documents below. Accepted formats: PDF, JPG,
+        PNG.
       </p>
+
       <div className="space-y-4">
-        {["photograph", "aadhaarCard", "panCard", "governmentID"].map((docName, index) => (
-          <div
-            key={index}
-            className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 rounded-md border border-gray-200"
-          >
-            <label className="block text-sm font-medium text-gray-700 sm:w-1/3">
-              {docName === "governmentID"
-                ? "Passport/Voter ID/Driver License"
-                : docName
-                    .replace(/([A-Z])/g, " $1")
-                    .replace(/^./, (str) => str.toUpperCase())}
-            </label>
-            <div className="mt-2 sm:mt-0 sm:w-2/3 flex items-center gap-2">
-              <input
-                type="file"
-                id={docName}
-                name={docName}
-                onChange={(e) => handleFileChange(e, docName)}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-              />
-              {formData.attachments[docName] && (
-                <span className="text-xs text-gray-500 flex-shrink-0">
-                  {formData.attachments[docName].name}
-                </span>
-              )}
+        {["photograph", "aadhaarCard", "panCard", "governmentID"].map(
+          (docName) => (
+            <div
+              key={docName}
+              className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 rounded-md border border-gray-200"
+            >
+              <label className="block text-sm font-medium text-gray-700 sm:w-1/3">
+                {docName === "governmentID"
+                  ? "Passport / Voter ID / Driver License"
+                  : docName
+                      .replace(/([A-Z])/g, " $1")
+                      .replace(/^./, (str) => str.toUpperCase())}
+              </label>
+              <div className="mt-2 sm:mt-0 sm:w-2/3 flex items-center gap-2">
+                <input
+                  type="file"
+                  id={docName}
+                  onChange={(e) => handleFileChange(e, docName)}
+                  className="block w-full text-sm text-gray-500 
+                  file:mr-4 file:py-2 file:px-4 
+                  file:rounded-full file:border-0 
+                  file:text-sm file:font-semibold 
+                  file:bg-indigo-50 file:text-indigo-700 
+                  hover:file:bg-indigo-100"
+                />
+                {formData.attachments[docName] && (
+                  <span className="text-xs text-gray-500 flex-shrink-0">
+                    {formData.attachments[docName].name}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        )}
       </div>
     </section>
   );
 
-  const navigate = useNavigate();
-
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
       <ProgressBar currentStep={1} />
+
       <button
         onClick={() => navigate(-1)}
         className="fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-lg text-gray-700 hover:bg-gray-200 transition-colors transform hover:scale-105"
@@ -360,16 +373,19 @@ const PersonalDetails = () => {
       <div className="flex flex-col max-w-[88rem] md:flex-row w-full gap-8 items-start">
         {/* Main form container */}
         <div className="w-full md:w-3/4 bg-white rounded-2xl shadow-2xl overflow-hidden p-6 sm:p-10">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Personal Details</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            Personal Details
+          </h1>
           <p className="text-sm text-gray-600 mb-6">
             Let's start with your personal and contact information.
           </p>
 
+          {/* Tabs */}
           <div className="flex border-b border-gray-200 mb-8">
             <button
               type="button"
               onClick={() => setActiveTab("personal")}
-              className={`flex-1 py-3 px-1 text-center font-medium text-sm transition-colors duration-200 border-b-2 ${
+              className={`flex-1 py-3 px-1 text-center font-medium text-sm border-b-2 ${
                 activeTab === "personal"
                   ? "border-indigo-600 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700"
@@ -382,7 +398,7 @@ const PersonalDetails = () => {
             <button
               type="button"
               onClick={() => setActiveTab("attachments")}
-              className={`flex-1 py-3 px-1 text-center font-medium text-sm transition-colors duration-200 border-b-2 ${
+              className={`flex-1 py-3 px-1 text-center font-medium text-sm border-b-2 ${
                 activeTab === "attachments"
                   ? "border-indigo-600 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700"
@@ -394,6 +410,7 @@ const PersonalDetails = () => {
             </button>
           </div>
 
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-8">
             <AnimatePresence mode="wait">
               <motion.div
@@ -404,7 +421,9 @@ const PersonalDetails = () => {
                 transition={{ duration: 0.3 }}
                 className="min-h-[600px]"
               >
-                {activeTab === "personal" ? renderPersonalDetails() : renderAttachments()}
+                {activeTab === "personal"
+                  ? renderPersonalDetails()
+                  : renderAttachments()}
               </motion.div>
             </AnimatePresence>
 
@@ -419,7 +438,7 @@ const PersonalDetails = () => {
           </form>
         </div>
 
-        {/* Floating Chatbot Companion */}
+        {/* Chatbot placeholder */}
         <div className="hidden md:block md:w-2/5 h-[80vh] bg-white rounded-2xl shadow-2xl p-6 border border-gray-200 overflow-y-auto sticky top-4">
           <div className="flex items-center gap-3 text-indigo-600 mb-4 border-b pb-4">
             <Bot className="w-6 h-6" />
@@ -428,14 +447,16 @@ const PersonalDetails = () => {
           <div className="text-gray-700 space-y-4">
             <p>Hi there! I'm here to help you with your loan application.</p>
             <p>
-              Feel free to ask me any questions you have about the process or the documents you need
-              to submit.
+              Feel free to ask me any questions you have about the process or
+              the documents you need to submit.
             </p>
             <div className="p-4 bg-indigo-50 rounded-lg">
-              <p className="text-sm">This is a placeholder for a live chatbot interface.</p>
+              <p className="text-sm">
+                This is a placeholder for a live chatbot interface.
+              </p>
               <p className="text-sm mt-2 text-indigo-800">
-                Possible functionality: Answer FAQs, guide through form fields, check loan
-                eligibility in real-time.
+                Possible functionality: Answer FAQs, guide through form fields,
+                check loan eligibility in real-time.
               </p>
             </div>
           </div>
