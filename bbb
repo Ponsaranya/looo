@@ -1,0 +1,408 @@
+2) Copy-paste code
+src/main/java/com/loanorigination/entity/PersonalDetails.java
+package com.loanorigination.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "personal_details")
+public class PersonalDetails {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    @Column(name = "first_name", length = 150)
+    private String firstName;
+
+    @Column(name = "middle_name", length = 150)
+    private String middleName;
+
+    @Column(name = "last_name", length = 150)
+    private String lastName;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "gender_id")
+    private Integer genderId;
+
+    @Column(name = "marital_status", length = 50)
+    private String maritalStatus;
+
+    @Column(name = "phone_number", length = 30)
+    private String phoneNumber;
+
+    @Column(name = "alternate_phone", length = 30)
+    private String alternatePhone;
+
+    @Column(name = "current_address", columnDefinition = "text")
+    private String currentAddress;
+
+    @Column(name = "permanent_address", columnDefinition = "text")
+    private String permanentAddress;
+
+    @Column(name = "aadhaar_number", length = 20)
+    private String aadhaarNumber;
+
+    @Column(name = "pan_number", length = 20)
+    private String panNumber;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    public void prePersist() {
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
+    // -- getters & setters (generate in your IDE) --
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
+
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+
+    public String getMiddleName() { return middleName; }
+    public void setMiddleName(String middleName) { this.middleName = middleName; }
+
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+
+    public LocalDate getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+
+    public Integer getGenderId() { return genderId; }
+    public void setGenderId(Integer genderId) { this.genderId = genderId; }
+
+    public String getMaritalStatus() { return maritalStatus; }
+    public void setMaritalStatus(String maritalStatus) { this.maritalStatus = maritalStatus; }
+
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+
+    public String getAlternatePhone() { return alternatePhone; }
+    public void setAlternatePhone(String alternatePhone) { this.alternatePhone = alternatePhone; }
+
+    public String getCurrentAddress() { return currentAddress; }
+    public void setCurrentAddress(String currentAddress) { this.currentAddress = currentAddress; }
+
+    public String getPermanentAddress() { return permanentAddress; }
+    public void setPermanentAddress(String permanentAddress) { this.permanentAddress = permanentAddress; }
+
+    public String getAadhaarNumber() { return aadhaarNumber; }
+    public void setAadhaarNumber(String aadhaarNumber) { this.aadhaarNumber = aadhaarNumber; }
+
+    public String getPanNumber() { return panNumber; }
+    public void setPanNumber(String panNumber) { this.panNumber = panNumber; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+}
+
+src/main/java/com/loanorigination/dto/PersonalDetailsRequest.java
+package com.loanorigination.dto;
+
+import jakarta.validation.constraints.*;
+public class PersonalDetailsRequest {
+
+    @NotNull
+    private Long userId;
+
+    @NotBlank
+    private String firstName;
+
+    private String middleName;
+
+    @NotBlank
+    private String lastName;
+
+    // Accepting DOB as yyyy-MM-dd string for simplicity
+    @NotBlank
+    private String dateOfBirth;
+
+    private Integer genderId;
+    private String maritalStatus;
+    private String phoneNumber;
+    private String alternatePhone;
+    private String currentAddress;
+    private String permanentAddress;
+    private String aadhaarNumber;
+    private String panNumber;
+
+    // getters & setters
+
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
+
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+
+    public String getMiddleName() { return middleName; }
+    public void setMiddleName(String middleName) { this.middleName = middleName; }
+
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+
+    public String getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(String dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+
+    public Integer getGenderId() { return genderId; }
+    public void setGenderId(Integer genderId) { this.genderId = genderId; }
+
+    public String getMaritalStatus() { return maritalStatus; }
+    public void setMaritalStatus(String maritalStatus) { this.maritalStatus = maritalStatus; }
+
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+
+    public String getAlternatePhone() { return alternatePhone; }
+    public void setAlternatePhone(String alternatePhone) { this.alternatePhone = alternatePhone; }
+
+    public String getCurrentAddress() { return currentAddress; }
+    public void setCurrentAddress(String currentAddress) { this.currentAddress = currentAddress; }
+
+    public String getPermanentAddress() { return permanentAddress; }
+    public void setPermanentAddress(String permanentAddress) { this.permanentAddress = permanentAddress; }
+
+    public String getAadhaarNumber() { return aadhaarNumber; }
+    public void setAadhaarNumber(String aadhaarNumber) { this.aadhaarNumber = aadhaarNumber; }
+
+    public String getPanNumber() { return panNumber; }
+    public void setPanNumber(String panNumber) { this.panNumber = panNumber; }
+}
+
+src/main/java/com/loanorigination/dto/PersonalDetailsResponse.java
+package com.loanorigination.dto;
+
+public class PersonalDetailsResponse {
+
+    private Long id;
+    private Long userId;
+    private String firstName;
+    private String middleName;
+    private String lastName;
+    private String dateOfBirth; // yyyy-MM-dd
+    private Integer genderId;
+    private String maritalStatus;
+    private String phoneNumber;
+    private String alternatePhone;
+    private String currentAddress;
+    private String permanentAddress;
+    private String aadhaarNumber;
+    private String panNumber;
+    private String updatedAt; // ISO timestamp as string
+
+    // getters & setters (generate)
+    // ...
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
+
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+
+    public String getMiddleName() { return middleName; }
+    public void setMiddleName(String middleName) { this.middleName = middleName; }
+
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+
+    public String getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(String dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+
+    public Integer getGenderId() { return genderId; }
+    public void setGenderId(Integer genderId) { this.genderId = genderId; }
+
+    public String getMaritalStatus() { return maritalStatus; }
+    public void setMaritalStatus(String maritalStatus) { this.maritalStatus = maritalStatus; }
+
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+
+    public String getAlternatePhone() { return alternatePhone; }
+    public void setAlternatePhone(String alternatePhone) { this.alternatePhone = alternatePhone; }
+
+    public String getCurrentAddress() { return currentAddress; }
+    public void setCurrentAddress(String currentAddress) { this.currentAddress = currentAddress; }
+
+    public String getPermanentAddress() { return permanentAddress; }
+    public void setPermanentAddress(String permanentAddress) { this.permanentAddress = permanentAddress; }
+
+    public String getAadhaarNumber() { return aadhaarNumber; }
+    public void setAadhaarNumber(String aadhaarNumber) { this.aadhaarNumber = aadhaarNumber; }
+
+    public String getPanNumber() { return panNumber; }
+    public void setPanNumber(String panNumber) { this.panNumber = panNumber; }
+
+    public String getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(String updatedAt) { this.updatedAt = updatedAt; }
+}
+
+src/main/java/com/loanorigination/repository/PersonalDetailsRepository.java
+package com.loanorigination.repository;
+
+import com.loanorigination.entity.PersonalDetails;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface PersonalDetailsRepository extends JpaRepository<PersonalDetails, Long> {
+    Optional<PersonalDetails> findByUserId(Long userId);
+}
+
+src/main/java/com/loanorigination/service/PersonalDetailsService.java
+package com.loanorigination.service;
+
+import com.loanorigination.dto.PersonalDetailsRequest;
+import com.loanorigination.dto.PersonalDetailsResponse;
+import com.loanorigination.entity.PersonalDetails;
+import com.loanorigination.exception.ResourceNotFoundException;
+import com.loanorigination.repository.PersonalDetailsRepository;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+
+@Service
+public class PersonalDetailsService {
+
+    private final PersonalDetailsRepository repository;
+
+    public PersonalDetailsService(PersonalDetailsRepository repository) {
+        this.repository = repository;
+    }
+
+    public PersonalDetailsResponse saveOrUpdate(PersonalDetailsRequest req) {
+        PersonalDetails entity = repository.findByUserId(req.getUserId()).orElse(new PersonalDetails());
+
+        // set user id
+        entity.setUserId(req.getUserId());
+
+        entity.setFirstName(req.getFirstName());
+        entity.setMiddleName(req.getMiddleName());
+        entity.setLastName(req.getLastName());
+
+        // parse date
+        if (req.getDateOfBirth() != null && !req.getDateOfBirth().isBlank()) {
+            try {
+                entity.setDateOfBirth(LocalDate.parse(req.getDateOfBirth()));
+            } catch (DateTimeParseException ex) {
+                throw new IllegalArgumentException("dateOfBirth must be yyyy-MM-dd");
+            }
+        } else {
+            entity.setDateOfBirth(null);
+        }
+
+        entity.setGenderId(req.getGenderId());
+        entity.setMaritalStatus(req.getMaritalStatus());
+        entity.setPhoneNumber(req.getPhoneNumber());
+        entity.setAlternatePhone(req.getAlternatePhone());
+        entity.setCurrentAddress(req.getCurrentAddress());
+        entity.setPermanentAddress(req.getPermanentAddress());
+        entity.setAadhaarNumber(req.getAadhaarNumber());
+        entity.setPanNumber(req.getPanNumber());
+
+        PersonalDetails saved = repository.save(entity);
+        return mapToResponse(saved);
+    }
+
+    public PersonalDetailsResponse getByUserId(Long userId) {
+        PersonalDetails p = repository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Personal details not found for user " + userId));
+        return mapToResponse(p);
+    }
+
+    private PersonalDetailsResponse mapToResponse(PersonalDetails p) {
+        PersonalDetailsResponse r = new PersonalDetailsResponse();
+        r.setId(p.getId());
+        r.setUserId(p.getUserId());
+        r.setFirstName(p.getFirstName());
+        r.setMiddleName(p.getMiddleName());
+        r.setLastName(p.getLastName());
+        r.setDateOfBirth(p.getDateOfBirth() != null ? p.getDateOfBirth().toString() : null);
+        r.setGenderId(p.getGenderId());
+        r.setMaritalStatus(p.getMaritalStatus());
+        r.setPhoneNumber(p.getPhoneNumber());
+        r.setAlternatePhone(p.getAlternatePhone());
+        r.setCurrentAddress(p.getCurrentAddress());
+        r.setPermanentAddress(p.getPermanentAddress());
+        r.setAadhaarNumber(p.getAadhaarNumber());
+        r.setPanNumber(p.getPanNumber());
+        r.setUpdatedAt(p.getUpdatedAt() != null ? p.getUpdatedAt().toString() : null);
+        return r;
+    }
+}
+
+src/main/java/com/loanorigination/controller/PersonalDetailsController.java
+package com.loanorigination.controller;
+
+import com.loanorigination.dto.PersonalDetailsRequest;
+import com.loanorigination.dto.PersonalDetailsResponse;
+import com.loanorigination.service.PersonalDetailsService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/personal-details")
+public class PersonalDetailsController {
+
+    private final PersonalDetailsService service;
+
+    public PersonalDetailsController(PersonalDetailsService service) {
+        this.service = service;
+    }
+
+    // Create or update personal details (based on userId)
+    @PostMapping
+    public ResponseEntity<PersonalDetailsResponse> createOrUpdate(
+            @Valid @RequestBody PersonalDetailsRequest req) {
+        PersonalDetailsResponse saved = service.saveOrUpdate(req);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    // Get personal details by user id
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<PersonalDetailsResponse> getByUserId(@PathVariable Long userId) {
+        return ResponseEntity.ok(service.getByUserId(userId));
+    }
+}
+
+src/main/java/com/loanorigination/exception/ResourceNotFoundException.java
+package com.loanorigination.exception;
+
+public class ResourceNotFoundException extends RuntimeException {
+    public ResourceNotFoundException(String msg) { super(msg); }
+}
+
+3) application.properties snippet (if not set)
+
+Put proper values in src/main/resources/application.properties:
+
+spring.datasource.url=jdbc:postgresql://localhost:5432/your_db
+spring.datasource.username=your_user
+spring.datasource.password=your_password
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+
+
+If your table names/columns differ, update @Table / @Column names accordingly.
