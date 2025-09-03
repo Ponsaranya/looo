@@ -1,0 +1,122 @@
+✅ 1. SecurityConfig.java
+
+This config makes your APIs open in Swagger (no login required). Later you can tighten security.
+
+package com.loanorigination.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable()) // Disable CSRF for testing
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**",
+                        "/api/**"
+                ).permitAll()
+                .anyRequest().authenticated()
+            )
+            .httpBasic(); // Enable basic auth (optional, for testing)
+
+        return http.build();
+    }
+}
+
+
+👉 With this, your POST and GET will work directly in Swagger without asking for username/password.
+
+✅ 2. SwaggerConfig.java
+
+This ensures Swagger UI loads properly.
+
+package com.loanorigination.config;
+
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class SwaggerConfig {
+
+    @Bean
+    public OpenAPI loanOriginationAPI() {
+        return new OpenAPI()
+                .info(new Info()
+                        .title("Loan Origination API")
+                        .description("API documentation for Personal Details service")
+                        .version("1.0"));
+    }
+}
+
+✅ 3. application.properties
+
+A final clean version with PostgreSQL + Swagger-friendly setup:
+
+# ===============================
+# = Database Configuration
+# ===============================
+spring.datasource.url=jdbc:postgresql://localhost:5432/loan_origination_db_demo
+spring.datasource.username=postgres
+spring.datasource.password=your_password
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# ===============================
+# = JPA / Hibernate Configuration
+# ===============================
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+
+# ===============================
+# = Server Configuration
+# ===============================
+server.port=8080
+
+# ===============================
+# = Logging
+# ===============================
+logging.level.org.hibernate.SQL=DEBUG
+logging.level.org.hibernate.type.descriptor.sql.BasicBinder=TRACE
+logging.level.org.springframework.security=DEBUG
+
+# ===============================
+# = JWT Configuration
+# ===============================
+jwt.secret=mySecretKey1234567890
+jwt.expiration=86400000
+
+# ===============================
+# = File Upload
+# ===============================
+spring.servlet.multipart.max-file-size=10MB
+spring.servlet.multipart.max-request-size=10MB
+file.upload-dir=uploads/
+
+# ===============================
+# = Mail (Optional)
+# ===============================
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=your_email@gmail.com
+spring.mail.password=your_app_password
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+
+
+👉 With these 3 files in place, your backend should:
+
+Run without login prompts
+
+Allow Swagger to test POST and GET for personal-details
+
+Work with your PostgreSQL database
