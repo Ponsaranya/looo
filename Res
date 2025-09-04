@@ -1,0 +1,85 @@
+package com.example.demo.dto;
+
+import com.example.demo.entity.PersonalDetails;
+
+public class PersonalDetailsResponse {
+
+    private Long userId;
+    private String firstName;
+    private String middleName;
+    private String lastName;
+    private String dob;
+    private String gender;
+    private String maritalStatus;
+    private String phoneNumber;
+    private String alternatePhone;
+    private String emailAddress;
+    private String aadhaarNumber;
+    private String panNumber;
+    private String currentAddress;
+    private String permanentAddress;
+
+    // ✅ Mapper method
+    public static PersonalDetailsResponse fromEntity(PersonalDetails entity) {
+        PersonalDetailsResponse res = new PersonalDetailsResponse();
+        res.setUserId(entity.getUserId());
+        res.setFirstName(entity.getFirstName());
+        res.setMiddleName(entity.getMiddleName());
+        res.setLastName(entity.getLastName());
+        res.setDob(entity.getDob() != null ? entity.getDob().toString() : null);
+        res.setGender(entity.getGender());
+        res.setMaritalStatus(entity.getMaritalStatus());
+        res.setPhoneNumber(entity.getPhoneNumber());
+        res.setAlternatePhone(entity.getAlternatePhone());
+        res.setEmailAddress(entity.getEmailAddress());
+        res.setAadhaarNumber(entity.getAadhaarNumber());
+        res.setPanNumber(entity.getPanNumber());
+        res.setCurrentAddress(entity.getCurrentAddress());
+        res.setPermanentAddress(entity.getPermanentAddress());
+        return res;
+    }
+
+    // ✅ Getters and setters
+    // (you can use Lombok @Data if allowed)
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
+
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+
+    public String getMiddleName() { return middleName; }
+    public void setMiddleName(String middleName) { this.middleName = middleName; }
+
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+
+    public String getDob() { return dob; }
+    public void setDob(String dob) { this.dob = dob; }
+
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+
+    public String getMaritalStatus() { return maritalStatus; }
+    public void setMaritalStatus(String maritalStatus) { this.maritalStatus = maritalStatus; }
+
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+
+    public String getAlternatePhone() { return alternatePhone; }
+    public void setAlternatePhone(String alternatePhone) { this.alternatePhone = alternatePhone; }
+
+    public String getEmailAddress() { return emailAddress; }
+    public void setEmailAddress(String emailAddress) { this.emailAddress = emailAddress; }
+
+    public String getAadhaarNumber() { return aadhaarNumber; }
+    public void setAadhaarNumber(String aadhaarNumber) { this.aadhaarNumber = aadhaarNumber; }
+
+    public String getPanNumber() { return panNumber; }
+    public void setPanNumber(String panNumber) { this.panNumber = panNumber; }
+
+    public String getCurrentAddress() { return currentAddress; }
+    public void setCurrentAddress(String currentAddress) { this.currentAddress = currentAddress; }
+
+    public String getPermanentAddress() { return permanentAddress; }
+    public void setPermanentAddress(String permanentAddress) { this.permanentAddress = permanentAddress; }
+}
