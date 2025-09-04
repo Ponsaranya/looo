@@ -1,0 +1,121 @@
+Got it 👍 — if you’re seeing 401 Unauthorized when submitting from your React frontend, it means Spring Security is still blocking the request.
+
+Even though we added a SecurityConfig, sometimes Spring Boot auto-config kicks in if the class isn’t picked up or is misconfigured.
+
+Let’s fix this cleanly:
+
+
+---
+
+1. Make sure SecurityConfig is in the right package
+
+It must be in the same package or a sub-package of your @SpringBootApplication class.
+Example: if your main class is in com.example.demo, then put SecurityConfig in com.example.demo.config.
+
+
+If you accidentally put it in another package that Spring doesn’t scan, it won’t load.
+
+
+---
+
+2. Minimal SecurityConfig that allows everything
+
+Try this version (copy–paste):
+
+package com.example.demo.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())       // disable CSRF for POST from frontend
+            .authorizeHttpRequests(auth -> auth
+                .anyRequest().permitAll()       // allow all endpoints without login
+            )
+            .cors();                            // enable CORS (matches CorsConfig)
+
+        return http.build();
+    }
+}
+
+
+---
+
+3. Confirm CORS is enabled
+
+Keep the CorsConfig we added earlier:
+
+package com.example.demo.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.*;
+
+@Configuration
+public class CorsConfig {
+    @Bean
+    public WebMvcConfigurer corsConfigurer() {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/**")
+                        .allowedOrigins("http://localhost:3000")
+                        .allowedMethods("GET","POST","PUT","DELETE","OPTIONS")
+                        .allowedHeaders("*")
+                        .allowCredentials(true);
+            }
+        };
+    }
+}
+
+
+---
+
+4. Restart backend
+
+Stop the running server.
+
+Do a clean build and restart:
+
+mvn clean spring-boot:run
+
+
+Watch logs — if you see Spring Security auto-config messages, check that your SecurityConfig class is indeed being loaded.
+
+
+---
+
+5. Test again
+
+From your React form:
+
+Open browser console → Network tab → click on the POST request.
+
+You should see Status: 200 OK and the JSON response.
+
+
+If it still says 401:
+
+Hit the same API from Postman:
+
+POST http://localhost:9091/api/personal-details
+
+with JSON body.
+
+If Postman works but React fails → CORS issue.
+
+If both fail → SecurityConfig not applied.
+
+
+
+---
+
+👉 Question: Do you want me to give you a complete project tree with all files in correct packages, so you can compare and be sure the config is in the right place?
+
