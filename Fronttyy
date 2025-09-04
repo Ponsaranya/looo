@@ -1,0 +1,389 @@
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import ProgressBar from "./ProgressBar";
+import { ArrowRight, Upload, User, FileText, Bot, ArrowLeft } from "lucide-react";
+
+const PersonalDetails = () => {
+  const [formData, setFormData] = useState({
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    dob: "",              // ✅ added DOB
+    gender: "",
+    maritalStatus: "",
+    phoneNumber: "",
+    alternatePhone: "",
+    emailAddress: "",
+    aadhaarNumber: "",
+    panNumber: "",
+    currentAddress: "",
+    permanentAddress: "",
+  });
+
+  const [isSameAddress, setIsSameAddress] = useState(false);
+  const [activeTab, setActiveTab] = useState("personal");
+  const navigate = useNavigate();
+
+  // Handle text/select inputs
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  // Copy current address to permanent if checked
+  const handleAddressToggle = () => {
+    setIsSameAddress(!isSameAddress);
+    if (!isSameAddress) {
+      setFormData((prevData) => ({
+        ...prevData,
+        permanentAddress: prevData.currentAddress,
+      }));
+    }
+  };
+
+  // Submit form
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    console.log("Submitting form:", formData);
+
+    try {
+      const response = await fetch("http://localhost:9091/api/personal-details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        alert("Personal details submitted successfully!");
+        navigate("/employmentdetails");
+      } else {
+        alert("Failed to submit. Status: " + response.status);
+      }
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      alert("Something went wrong. Check console for details.");
+    }
+  };
+
+  // Tab 1: Personal Details
+  const renderPersonalDetails = () => (
+    <section>
+      <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+        <User className="w-5 h-5 text-indigo-600" /> Applicant Information
+      </h2>
+
+      {/* Name fields */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {["firstName", "middleName", "lastName"].map((field, idx) => (
+          <div key={idx}>
+            <label htmlFor={field} className="block text-sm font-medium text-gray-700">
+              {field === "firstName"
+                ? "First Name"
+                : field === "middleName"
+                ? "Middle Name (Optional)"
+                : "Last Name"}
+            </label>
+            <input
+              type="text"
+              id={field}
+              name={field}
+              placeholder={
+                field === "firstName"
+                  ? "John"
+                  : field === "middleName"
+                  ? "Smith"
+                  : "Doe"
+              }
+              value={formData[field]}
+              onChange={handleInputChange}
+              className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* DOB */}
+      <div className="mt-4">
+        <label htmlFor="dob" className="block text-sm font-medium text-gray-700">
+          Date of Birth
+        </label>
+        <input
+          type="date"
+          id="dob"
+          name="dob"
+          value={formData.dob}
+          onChange={handleInputChange}
+          className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        />
+      </div>
+
+      {/* Gender + Marital Status */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="gender" className="block text-sm font-medium text-gray-700">
+            Gender
+          </label>
+          <select
+            id="gender"
+            name="gender"
+            value={formData.gender}
+            onChange={handleInputChange}
+            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          >
+            <option value="">Select Gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label
+            htmlFor="maritalStatus"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Marital Status
+          </label>
+          <select
+            id="maritalStatus"
+            name="maritalStatus"
+            value={formData.maritalStatus}
+            onChange={handleInputChange}
+            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          >
+            <option value="">Select Marital Status</option>
+            <option value="single">Single</option>
+            <option value="married">Married</option>
+            <option value="divorced">Divorced</option>
+            <option value="widowed">Widowed</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Phone + Alternate Phone */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
+            Phone Number
+          </label>
+          <input
+            type="tel"
+            id="phoneNumber"
+            name="phoneNumber"
+            placeholder="(123) 456-7890"
+            value={formData.phoneNumber}
+            onChange={handleInputChange}
+            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="alternatePhone"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Alternate Phone
+          </label>
+          <input
+            type="tel"
+            id="alternatePhone"
+            name="alternatePhone"
+            placeholder="(987) 654-3210"
+            value={formData.alternatePhone}
+            onChange={handleInputChange}
+            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+        </div>
+      </div>
+
+      {/* Email */}
+      <div className="mt-4">
+        <label
+          htmlFor="emailAddress"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Email Address
+        </label>
+        <input
+          type="email"
+          id="emailAddress"
+          name="emailAddress"
+          placeholder="john.doe@example.com"
+          value={formData.emailAddress}
+          onChange={handleInputChange}
+          className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        />
+      </div>
+
+      {/* Aadhaar + PAN */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="aadhaarNumber" className="block text-sm font-medium text-gray-700">
+            Aadhaar Card Number
+          </label>
+          <input
+            type="text"
+            id="aadhaarNumber"
+            name="aadhaarNumber"
+            placeholder="XXXX XXXX XXXX"
+            value={formData.aadhaarNumber}
+            onChange={handleInputChange}
+            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="panNumber" className="block text-sm font-medium text-gray-700">
+            PAN Card Number
+          </label>
+          <input
+            type="text"
+            id="panNumber"
+            name="panNumber"
+            placeholder="ABCDE1234F"
+            value={formData.panNumber}
+            onChange={handleInputChange}
+            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+        </div>
+      </div>
+
+      {/* Address */}
+      <div className="mt-4 space-y-4">
+        <div>
+          <label
+            htmlFor="currentAddress"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Current Address
+          </label>
+          <textarea
+            id="currentAddress"
+            name="currentAddress"
+            rows="3"
+            value={formData.currentAddress}
+            onChange={handleInputChange}
+            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+        </div>
+
+        <div className="flex items-center">
+          <input
+            id="same-address"
+            type="checkbox"
+            checked={isSameAddress}
+            onChange={handleAddressToggle}
+            className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+          />
+          <label htmlFor="same-address" className="ml-2 block text-sm text-gray-900">
+            Permanent Address is the same as Current Address
+          </label>
+        </div>
+
+        {!isSameAddress && (
+          <div>
+            <label
+              htmlFor="permanentAddress"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Permanent Address
+            </label>
+            <textarea
+              id="permanentAddress"
+              name="permanentAddress"
+              rows="3"
+              value={formData.permanentAddress}
+              onChange={handleInputChange}
+              className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+        )}
+      </div>
+    </section>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
+      <ProgressBar currentStep={1} />
+
+      <button
+        onClick={() => navigate(-1)}
+        className="fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-lg text-gray-700 hover:bg-gray-200 transition-colors transform hover:scale-105"
+      >
+        <ArrowLeft className="w-5 h-5" /> Back
+      </button>
+
+      <div className="flex flex-col max-w-[88rem] md:flex-row w-full gap-8 items-start">
+        {/* Main form container */}
+        <div className="w-full md:w-3/4 bg-white rounded-2xl shadow-2xl overflow-hidden p-6 sm:p-10">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            Personal Details
+          </h1>
+          <p className="text-sm text-gray-600 mb-6">
+            Let's start with your personal and contact information.
+          </p>
+
+          {/* Tabs */}
+          <div className="flex border-b border-gray-200 mb-8">
+            <button
+              type="button"
+              onClick={() => setActiveTab("personal")}
+              className={`flex-1 py-3 px-1 text-center font-medium text-sm border-b-2 ${
+                activeTab === "personal"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <span className="flex items-center justify-center gap-2">
+                <User className="w-4 h-4" /> Personal Details
+              </span>
+            </button>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="min-h-[600px]"
+              >
+                {renderPersonalDetails()}
+              </motion.div>
+            </AnimatePresence>
+
+            <div className="flex justify-end mt-6">
+              <button
+                type="submit"
+                className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200"
+              >
+                Next <ArrowRight className="h-4 w-4 ml-2" />
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Chatbot placeholder */}
+        <div className="hidden md:block md:w-2/5 h-[80vh] bg-white rounded-2xl shadow-2xl p-6 border border-gray-200 overflow-y-auto sticky top-4">
+          <div className="flex items-center gap-3 text-indigo-600 mb-4 border-b pb-4">
+            <Bot className="w-6 h-6" />
+            <h3 className="text-lg font-bold">Your Loan Companion</h3>
+          </div>
+          <div className="text-gray-700 space-y-4">
+            <p>Hi there! I'm here to help you with your loan application.</p>
+            <p>Fill out your details carefully before moving to employment info.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PersonalDetails;
