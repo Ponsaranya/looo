@@ -1,0 +1,389 @@
+Perfect 👍 since you don’t want Lombok, I’ll give you full code with getters and setters written manually.
+Here’s the clean setup for Entity, Request DTO, and Response DTO for PersonalDetails.
+
+
+---
+
+📌 1. Entity – PersonalDetails.java
+
+package com.loanorigination.entity;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "personal_details")
+public class PersonalDetails {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String firstName;
+    private String middleName;
+    private String lastName;
+    private String dob;              // date of birth as string (yyyy-MM-dd)
+    private String gender;
+    private String maritalStatus;
+    private String phoneNumber;
+    private String alternatePhone;
+    private String emailAddress;
+    private String aadhaarNumber;
+    private String panNumber;
+    private String currentAddress;
+    private String permanentAddress;
+
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getMiddleName() {
+        return middleName;
+    }
+    public void setMiddleName(String middleName) {
+        this.middleName = middleName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getDob() {
+        return dob;
+    }
+    public void setDob(String dob) {
+        this.dob = dob;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public String getMaritalStatus() {
+        return maritalStatus;
+    }
+    public void setMaritalStatus(String maritalStatus) {
+        this.maritalStatus = maritalStatus;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public String getAlternatePhone() {
+        return alternatePhone;
+    }
+    public void setAlternatePhone(String alternatePhone) {
+        this.alternatePhone = alternatePhone;
+    }
+
+    public String getEmailAddress() {
+        return emailAddress;
+    }
+    public void setEmailAddress(String emailAddress) {
+        this.emailAddress = emailAddress;
+    }
+
+    public String getAadhaarNumber() {
+        return aadhaarNumber;
+    }
+    public void setAadhaarNumber(String aadhaarNumber) {
+        this.aadhaarNumber = aadhaarNumber;
+    }
+
+    public String getPanNumber() {
+        return panNumber;
+    }
+    public void setPanNumber(String panNumber) {
+        this.panNumber = panNumber;
+    }
+
+    public String getCurrentAddress() {
+        return currentAddress;
+    }
+    public void setCurrentAddress(String currentAddress) {
+        this.currentAddress = currentAddress;
+    }
+
+    public String getPermanentAddress() {
+        return permanentAddress;
+    }
+    public void setPermanentAddress(String permanentAddress) {
+        this.permanentAddress = permanentAddress;
+    }
+}
+
+
+---
+
+📌 2. Request DTO – PersonalDetailsRequest.java
+
+package com.loanorigination.dto;
+
+public class PersonalDetailsRequest {
+    private String firstName;
+    private String middleName;
+    private String lastName;
+    private String dob;
+    private String gender;
+    private String maritalStatus;
+    private String phoneNumber;
+    private String alternatePhone;
+    private String emailAddress;
+    private String aadhaarNumber;
+    private String panNumber;
+    private String currentAddress;
+    private String permanentAddress;
+
+    // Getters and Setters
+    public String getFirstName() {
+        return firstName;
+    }
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getMiddleName() {
+        return middleName;
+    }
+    public void setMiddleName(String middleName) {
+        this.middleName = middleName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getDob() {
+        return dob;
+    }
+    public void setDob(String dob) {
+        this.dob = dob;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public String getMaritalStatus() {
+        return maritalStatus;
+    }
+    public void setMaritalStatus(String maritalStatus) {
+        this.maritalStatus = maritalStatus;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public String getAlternatePhone() {
+        return alternatePhone;
+    }
+    public void setAlternatePhone(String alternatePhone) {
+        this.alternatePhone = alternatePhone;
+    }
+
+    public String getEmailAddress() {
+        return emailAddress;
+    }
+    public void setEmailAddress(String emailAddress) {
+        this.emailAddress = emailAddress;
+    }
+
+    public String getAadhaarNumber() {
+        return aadhaarNumber;
+    }
+    public void setAadhaarNumber(String aadhaarNumber) {
+        this.aadhaarNumber = aadhaarNumber;
+    }
+
+    public String getPanNumber() {
+        return panNumber;
+    }
+    public void setPanNumber(String panNumber) {
+        this.panNumber = panNumber;
+    }
+
+    public String getCurrentAddress() {
+        return currentAddress;
+    }
+    public void setCurrentAddress(String currentAddress) {
+        this.currentAddress = currentAddress;
+    }
+
+    public String getPermanentAddress() {
+        return permanentAddress;
+    }
+    public void setPermanentAddress(String permanentAddress) {
+        this.permanentAddress = permanentAddress;
+    }
+}
+
+
+---
+
+📌 3. Response DTO – PersonalDetailsResponse.java
+
+package com.loanorigination.dto;
+
+public class PersonalDetailsResponse {
+    private Long id;
+    private String firstName;
+    private String middleName;
+    private String lastName;
+    private String dob;
+    private String gender;
+    private String maritalStatus;
+    private String phoneNumber;
+    private String alternatePhone;
+    private String emailAddress;
+    private String aadhaarNumber;
+    private String panNumber;
+    private String currentAddress;
+    private String permanentAddress;
+
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getMiddleName() {
+        return middleName;
+    }
+    public void setMiddleName(String middleName) {
+        this.middleName = middleName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getDob() {
+        return dob;
+    }
+    public void setDob(String dob) {
+        this.dob = dob;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public String getMaritalStatus() {
+        return maritalStatus;
+    }
+    public void setMaritalStatus(String maritalStatus) {
+        this.maritalStatus = maritalStatus;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public String getAlternatePhone() {
+        return alternatePhone;
+    }
+    public void setAlternatePhone(String alternatePhone) {
+        this.alternatePhone = alternatePhone;
+    }
+
+    public String getEmailAddress() {
+        return emailAddress;
+    }
+    public void setEmailAddress(String emailAddress) {
+        this.emailAddress = emailAddress;
+    }
+
+    public String getAadhaarNumber() {
+        return aadhaarNumber;
+    }
+    public void setAadhaarNumber(String aadhaarNumber) {
+        this.aadhaarNumber = aadhaarNumber;
+    }
+
+    public String getPanNumber() {
+        return panNumber;
+    }
+    public void setPanNumber(String panNumber) {
+        this.panNumber = panNumber;
+    }
+
+    public String getCurrentAddress() {
+        return currentAddress;
+    }
+    public void setCurrentAddress(String currentAddress) {
+        this.currentAddress = currentAddress;
+    }
+
+    public String getPermanentAddress() {
+        return permanentAddress;
+    }
+    public void setPermanentAddress(String permanentAddress) {
+        this.permanentAddress = permanentAddress;
+    }
+}
+
+
+---
+
+✅ With this setup:
+
+Frontend sends → PersonalDetailsRequest
+
+Entity saves into DB
+
+Backend returns → PersonalDetailsResponse
+
+
+
+---
+
+Do you also want me to now write the Service + Controller full code (using these DTOs) so that you can copy–paste everything and run?
+
