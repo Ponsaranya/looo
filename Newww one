@@ -1,0 +1,258 @@
+Perfect 👍 Thanks for clarifying. I now understand — you don’t want partial snippets, but the entire files (controller, entity, DTOs, repository, service) rewritten cleanly, so you can just copy–paste without worrying about missing lines.
+
+I’ll rewrite the whole backend module for PersonalDetails exactly with your requirement:
+
+✅ Only id (no userId)
+
+✅ Proper package imports
+
+✅ Full classes with annotations, getters/setters handled by Lombok
+
+✅ Consistent naming
+
+✅ Ready to copy–paste
+
+
+
+---
+
+entity/PersonalDetails.java
+
+package com.loanorigination.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+
+@Entity
+@Table(name = "personal_details")
+@Data
+public class PersonalDetails {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;   // ✅ Only id, no userId
+
+    @Column(nullable = false)
+    private String firstName;
+
+    private String middleName;
+    private String lastName;
+
+    @Column(nullable = false)
+    private String dob;
+
+    private String gender;
+    private String maritalStatus;
+
+    @Column(nullable = false, unique = true)
+    private String phoneNumber;
+
+    private String alternatePhone;
+    private String emailAddress;
+    private String aadhaarNumber;
+    private String panNumber;
+    private String currentAddress;
+    private String permanentAddress;
+}
+
+
+---
+
+dto/PersonalDetailsRequest.java
+
+package com.loanorigination.dto;
+
+import lombok.Data;
+
+@Data
+public class PersonalDetailsRequest {
+    private String firstName;
+    private String middleName;
+    private String lastName;
+    private String dob;
+    private String gender;
+    private String maritalStatus;
+    private String phoneNumber;
+    private String alternatePhone;
+    private String emailAddress;
+    private String aadhaarNumber;
+    private String panNumber;
+    private String currentAddress;
+    private String permanentAddress;
+}
+
+
+---
+
+dto/PersonalDetailsResponse.java
+
+package com.loanorigination.dto;
+
+import lombok.Data;
+
+@Data
+public class PersonalDetailsResponse {
+    private Long id;  // ✅ Returning generated id
+    private String firstName;
+    private String middleName;
+    private String lastName;
+    private String dob;
+    private String gender;
+    private String maritalStatus;
+    private String phoneNumber;
+    private String alternatePhone;
+    private String emailAddress;
+    private String aadhaarNumber;
+    private String panNumber;
+    private String currentAddress;
+    private String permanentAddress;
+}
+
+
+---
+
+repository/PersonalDetailsRepository.java
+
+package com.loanorigination.repository;
+
+import com.loanorigination.entity.PersonalDetails;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface PersonalDetailsRepository extends JpaRepository<PersonalDetails, Long> {
+}
+
+
+---
+
+service/PersonalDetailsService.java
+
+package com.loanorigination.service;
+
+import com.loanorigination.dto.PersonalDetailsRequest;
+import com.loanorigination.dto.PersonalDetailsResponse;
+import com.loanorigination.entity.PersonalDetails;
+import com.loanorigination.repository.PersonalDetailsRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+public class PersonalDetailsService {
+
+    @Autowired
+    private PersonalDetailsRepository repository;
+
+    public PersonalDetailsResponse saveDetails(PersonalDetailsRequest request) {
+        PersonalDetails details = new PersonalDetails();
+        details.setFirstName(request.getFirstName());
+        details.setMiddleName(request.getMiddleName());
+        details.setLastName(request.getLastName());
+        details.setDob(request.getDob());
+        details.setGender(request.getGender());
+        details.setMaritalStatus(request.getMaritalStatus());
+        details.setPhoneNumber(request.getPhoneNumber());
+        details.setAlternatePhone(request.getAlternatePhone());
+        details.setEmailAddress(request.getEmailAddress());
+        details.setAadhaarNumber(request.getAadhaarNumber());
+        details.setPanNumber(request.getPanNumber());
+        details.setCurrentAddress(request.getCurrentAddress());
+        details.setPermanentAddress(request.getPermanentAddress());
+
+        PersonalDetails saved = repository.save(details);
+
+        return mapToResponse(saved);
+    }
+
+    public List<PersonalDetailsResponse> getAllDetails() {
+        return repository.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    public PersonalDetailsResponse getDetailsById(Long id) {
+        return repository.findById(id)
+                .map(this::mapToResponse)
+                .orElse(null);
+    }
+
+    private PersonalDetailsResponse mapToResponse(PersonalDetails details) {
+        PersonalDetailsResponse response = new PersonalDetailsResponse();
+        response.setId(details.getId());
+        response.setFirstName(details.getFirstName());
+        response.setMiddleName(details.getMiddleName());
+        response.setLastName(details.getLastName());
+        response.setDob(details.getDob());
+        response.setGender(details.getGender());
+        response.setMaritalStatus(details.getMaritalStatus());
+        response.setPhoneNumber(details.getPhoneNumber());
+        response.setAlternatePhone(details.getAlternatePhone());
+        response.setEmailAddress(details.getEmailAddress());
+        response.setAadhaarNumber(details.getAadhaarNumber());
+        response.setPanNumber(details.getPanNumber());
+        response.setCurrentAddress(details.getCurrentAddress());
+        response.setPermanentAddress(details.getPermanentAddress());
+        return response;
+    }
+}
+
+
+---
+
+controller/PersonalDetailsController.java
+
+package com.loanorigination.controller;
+
+import com.loanorigination.dto.PersonalDetailsRequest;
+import com.loanorigination.dto.PersonalDetailsResponse;
+import com.loanorigination.service.PersonalDetailsService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/personal-details")
+public class PersonalDetailsController {
+
+    @Autowired
+    private PersonalDetailsService service;
+
+    @PostMapping
+    public PersonalDetailsResponse saveDetails(@RequestBody PersonalDetailsRequest request) {
+        return service.saveDetails(request);
+    }
+
+    @GetMapping
+    public List<PersonalDetailsResponse> getAllDetails() {
+        return service.getAllDetails();
+    }
+
+    @GetMapping("/{id}")
+    public PersonalDetailsResponse getDetailsById(@PathVariable Long id) {
+        return service.getDetailsById(id);
+    }
+}
+
+
+---
+
+✅ Now your backend is complete and clean.
+
+/api/personal-details → POST to save
+
+/api/personal-details → GET to fetch all
+
+/api/personal-details/{id} → GET to fetch by id
+
+
+No userId anywhere, only id.
+
+
+---
+
+Do you also want me to rewrite the SwaggerConfig, SecurityConfig, CorsConfig files completely (like this) so your whole project stays consistent?
+
