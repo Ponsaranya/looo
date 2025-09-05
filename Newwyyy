@@ -1,0 +1,228 @@
+Got it 👍 thanks for sharing the screenshot.
+
+I see your backend is already structured well under com.loanorigination with:
+
+config → CorsConfig, SecurityConfig, SwaggerConfig
+
+controller → PersonalDetailsController
+
+dto → PersonalDetailsRequest, PersonalDetailsResponse
+
+entity → PersonalDetails
+
+repository → PersonalDetailsRepository
+
+service → PersonalDetailsService
+
+LoanOriginationBackendApplication
+
+
+
+---
+
+👉 Since you already have this structure, you don’t need to rebuild from scratch.
+You only need to remove userId and keep only id consistently across entity, DTO, repository, service, controller.
+
+Here’s how your updated backend should look:
+
+
+---
+
+entity/PersonalDetails.java
+
+package com.loanorigination.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+
+@Entity
+@Table(name = "personal_details")
+@Data
+public class PersonalDetails {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;   // ✅ only ID, no userId
+
+    private String firstName;
+    private String middleName;
+    private String lastName;
+    private String dob;
+    private String gender;
+    private String maritalStatus;
+    private String phoneNumber;
+    private String alternatePhone;
+    private String emailAddress;
+    private String aadhaarNumber;
+    private String panNumber;
+    private String currentAddress;
+    private String permanentAddress;
+}
+
+
+---
+
+dto/PersonalDetailsRequest.java
+
+package com.loanorigination.dto;
+
+import lombok.Data;
+
+@Data
+public class PersonalDetailsRequest {
+    private String firstName;
+    private String middleName;
+    private String lastName;
+    private String dob;
+    private String gender;
+    private String maritalStatus;
+    private String phoneNumber;
+    private String alternatePhone;
+    private String emailAddress;
+    private String aadhaarNumber;
+    private String panNumber;
+    private String currentAddress;
+    private String permanentAddress;
+}
+
+
+---
+
+dto/PersonalDetailsResponse.java
+
+package com.loanorigination.dto;
+
+import lombok.Data;
+
+@Data
+public class PersonalDetailsResponse {
+    private Long id;  // ✅ return ID
+    private String firstName;
+    private String middleName;
+    private String lastName;
+    private String dob;
+    private String gender;
+    private String maritalStatus;
+    private String phoneNumber;
+    private String alternatePhone;
+    private String emailAddress;
+    private String aadhaarNumber;
+    private String panNumber;
+    private String currentAddress;
+    private String permanentAddress;
+}
+
+
+---
+
+repository/PersonalDetailsRepository.java
+
+package com.loanorigination.repository;
+
+import com.loanorigination.entity.PersonalDetails;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface PersonalDetailsRepository extends JpaRepository<PersonalDetails, Long> {
+}
+
+
+---
+
+service/PersonalDetailsService.java
+
+package com.loanorigination.service;
+
+import com.loanorigination.dto.PersonalDetailsRequest;
+import com.loanorigination.dto.PersonalDetailsResponse;
+import com.loanorigination.entity.PersonalDetails;
+import com.loanorigination.repository.PersonalDetailsRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class PersonalDetailsService {
+
+    @Autowired
+    private PersonalDetailsRepository repository;
+
+    public PersonalDetailsResponse saveDetails(PersonalDetailsRequest request) {
+        PersonalDetails details = new PersonalDetails();
+        details.setFirstName(request.getFirstName());
+        details.setMiddleName(request.getMiddleName());
+        details.setLastName(request.getLastName());
+        details.setDob(request.getDob());
+        details.setGender(request.getGender());
+        details.setMaritalStatus(request.getMaritalStatus());
+        details.setPhoneNumber(request.getPhoneNumber());
+        details.setAlternatePhone(request.getAlternatePhone());
+        details.setEmailAddress(request.getEmailAddress());
+        details.setAadhaarNumber(request.getAadhaarNumber());
+        details.setPanNumber(request.getPanNumber());
+        details.setCurrentAddress(request.getCurrentAddress());
+        details.setPermanentAddress(request.getPermanentAddress());
+
+        PersonalDetails saved = repository.save(details);
+
+        PersonalDetailsResponse response = new PersonalDetailsResponse();
+        response.setId(saved.getId());  // ✅ return only ID
+        response.setFirstName(saved.getFirstName());
+        response.setMiddleName(saved.getMiddleName());
+        response.setLastName(saved.getLastName());
+        response.setDob(saved.getDob());
+        response.setGender(saved.getGender());
+        response.setMaritalStatus(saved.getMaritalStatus());
+        response.setPhoneNumber(saved.getPhoneNumber());
+        response.setAlternatePhone(saved.getAlternatePhone());
+        response.setEmailAddress(saved.getEmailAddress());
+        response.setAadhaarNumber(saved.getAadhaarNumber());
+        response.setPanNumber(saved.getPanNumber());
+        response.setCurrentAddress(saved.getCurrentAddress());
+        response.setPermanentAddress(saved.getPermanentAddress());
+
+        return response;
+    }
+}
+
+
+---
+
+controller/PersonalDetailsController.java
+
+package com.loanorigination.controller;
+
+import com.loanorigination.dto.PersonalDetailsRequest;
+import com.loanorigination.dto.PersonalDetailsResponse;
+import com.loanorigination.service.PersonalDetailsService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/personal-details")
+public class PersonalDetailsController {
+
+    @Autowired
+    private PersonalDetailsService service;
+
+    @PostMapping
+    public PersonalDetailsResponse saveDetails(@RequestBody PersonalDetailsRequest request) {
+        return service.saveDetails(request);
+    }
+}
+
+
+---
+
+✅ With this setup:
+
+POST /api/personal-details will accept request body from frontend.
+
+Backend will save to DB and return object with id (auto-generated) and other details.
+
+userId is completely gone.
+
+
+
+---
+
+Would you like me to also give the full frontend React form (with API call to /api/personal-details) so that when you submit, it directly saves in DB?
+
