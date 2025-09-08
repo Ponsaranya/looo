@@ -1,0 +1,168 @@
+import React, { useState } from "react";
+
+const BankingPage = () => {
+  const [page, setPage] = useState("home");
+
+  // EMI Calculator state
+  const [amount, setAmount] = useState("");
+  const [tenure, setTenure] = useState("");
+  const [rate, setRate] = useState("");
+  const [emi, setEmi] = useState(null);
+
+  const loans = [
+    { id: 1, name: "Home Loan" },
+    { id: 2, name: "Car Loan" },
+    { id: 3, name: "Personal Loan" },
+  ];
+
+  const calculateEMI = () => {
+    const p = parseFloat(amount);
+    const r = parseFloat(rate) / 12 / 100;
+    const n = parseInt(tenure);
+    if (!p || !r || !n) {
+      setEmi("Invalid input");
+      return;
+    }
+    const result = (p * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    setEmi(result.toFixed(2));
+  };
+
+  // --- Different Page Views ---
+  if (page === "check") {
+    return (
+      <div className="p-6">
+        <h1 className="text-xl font-bold mb-4">Check Eligible Demands</h1>
+        <p className="mb-4">Here you can check your loan eligibility details.</p>
+        <button
+          onClick={() => setPage("home")}
+          className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-800"
+        >
+          Back to Banking Page
+        </button>
+      </div>
+    );
+  }
+
+  if (page === "emi") {
+    return (
+      <div className="p-6">
+        <h1 className="text-xl font-bold mb-4">EMI Calculator</h1>
+        <div className="flex flex-col gap-3 max-w-sm">
+          <input
+            type="number"
+            placeholder="Loan Amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="border p-2 rounded"
+          />
+          <input
+            type="number"
+            placeholder="Tenure (months)"
+            value={tenure}
+            onChange={(e) => setTenure(e.target.value)}
+            className="border p-2 rounded"
+          />
+          <input
+            type="number"
+            placeholder="Interest Rate (%)"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            className="border p-2 rounded"
+          />
+          <button
+            onClick={calculateEMI}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-800"
+          >
+            Calculate EMI
+          </button>
+          {emi && <p className="mt-2 font-semibold">Your EMI: ₹{emi}</p>}
+        </div>
+        <button
+          onClick={() => setPage("home")}
+          className="mt-6 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-800"
+        >
+          Back to Banking Page
+        </button>
+      </div>
+    );
+  }
+
+  if (page === "apply") {
+    return (
+      <div className="p-6">
+        <h1 className="text-xl font-bold mb-4">Apply Now</h1>
+        <p>Here you can apply for a loan.</p>
+        <button
+          onClick={() => setPage("home")}
+          className="mt-6 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-800"
+        >
+          Back to Banking Page
+        </button>
+      </div>
+    );
+  }
+
+  if (page === "track") {
+    return (
+      <div className="p-6">
+        <h1 className="text-xl font-bold mb-4">Track Application</h1>
+        <p>Here you can track your loan application status.</p>
+        <button
+          onClick={() => setPage("home")}
+          className="mt-6 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-800"
+        >
+          Back to Banking Page
+        </button>
+      </div>
+    );
+  }
+
+  // --- Home Page with Loans & Buttons ---
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Banking Page</h1>
+      <div className="grid gap-6">
+        {loans.map((loan) => (
+          <div
+            key={loan.id}
+            className="flex justify-between items-center border rounded-xl shadow-md p-4 bg-white"
+          >
+            <div>
+              <h2 className="text-lg font-semibold">{loan.name}</h2>
+              <p className="text-gray-500">Manage your {loan.name}</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPage("check")}
+                className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-800"
+              >
+                Check Eligible Demands
+              </button>
+              <button
+                onClick={() => setPage("emi")}
+                className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-800"
+              >
+                EMI Calculator
+              </button>
+              <button
+                onClick={() => setPage("apply")}
+                className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-800"
+              >
+                Apply Now
+              </button>
+              <button
+                onClick={() => setPage("track")}
+                className="px-3 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-800"
+              >
+                Track Application
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default BankingPage;
