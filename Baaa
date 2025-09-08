@@ -1,0 +1,270 @@
+import React, { useState } from "react";
+import { ArrowRight, ArrowLeft, Calculator, FileText, Phone, Award } from "lucide-react";
+import { motion } from "framer-motion";
+import { Link, useNavigate } from "react-router-dom";
+
+const loanOptions = [
+  {
+    title: "Personal Loan",
+    description: "A flexible loan to cover personal expenses like weddings, medical bills, or debt consolidation.",
+    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1000&q=80",
+  },
+  {
+    title: "Home Loan",
+    description: "Secure financing to help you purchase a new home or refinance your existing mortgage.",
+    image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80",
+  },
+  {
+    title: "Vehicle Loan",
+    description: "Get financing for your new or used car, bike, or truck with easy repayment terms.",
+    image: "https://images.unsplash.com/photo-1681351623077-e4cc438f0548?auto=format&fit=crop&w=1000&q=80",
+  },
+  {
+    title: "Education Loan",
+    description: "Affordable loans for students to cover tuition fees, books, and living expenses.",
+    image: "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&w=1000&q=80",
+  },
+];
+
+const BankingPage = () => {
+  const navigate = useNavigate();
+  const [view, setView] = useState("home"); // home, eligibility, emi, details, contact
+  const [selectedLoan, setSelectedLoan] = useState(null);
+
+  // EMI calculation state
+  const [amount, setAmount] = useState("");
+  const [rate, setRate] = useState("");
+  const [tenure, setTenure] = useState("");
+  const [emi, setEmi] = useState(null);
+
+  const calculateEMI = () => {
+    const p = parseFloat(amount);
+    const r = parseFloat(rate) / 12 / 100;
+    const n = parseInt(tenure);
+    if (!p || !r || !n) {
+      setEmi("Invalid input");
+      return;
+    }
+    const result = (p * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    setEmi(result.toFixed(2));
+  };
+
+  const buttonOptions = (loan) => [
+    {
+      name: "Check Eligibility",
+      icon: <Award className="w-5 h-5" />,
+      action: () => {
+        setSelectedLoan(loan);
+        setView("eligibility");
+      },
+    },
+    {
+      name: "EMI Calculator",
+      icon: <Calculator className="w-5 h-5" />,
+      action: () => {
+        setSelectedLoan(loan);
+        setView("emi");
+      },
+    },
+    {
+      name: "Know More",
+      icon: <FileText className="w-5 h-5" />,
+      action: () => {
+        setSelectedLoan(loan);
+        setView("details");
+      },
+    },
+    {
+      name: "Contact Us",
+      icon: <Phone className="w-5 h-5" />,
+      action: () => {
+        setSelectedLoan(loan);
+        setView("contact");
+      },
+    },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: "100%" }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: "-100%" }}
+      transition={{ type: "tween", ease: "easeInOut", duration: 0.5 }}
+      className="p-6"
+    >
+      {/* Back Button */}
+      <button
+        onClick={() => navigate(-1)}
+        className="fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-lg text-gray-700 hover:bg-gray-200 transition"
+      >
+        <ArrowLeft className="w-5 h-5" />
+        Back
+      </button>
+
+      {/* Conditional Rendering */}
+      {view === "home" && (
+        <div className="max-w-5xl mx-auto flex flex-col gap-8">
+          <h1 className="text-3xl font-bold text-center mb-6">
+            Explore Our Loan Options
+          </h1>
+          {loanOptions.map((loan, index) => (
+            <div
+              key={index}
+              className="flex bg-white rounded-xl shadow-lg p-6 items-center"
+            >
+              {/* Loan image + details */}
+              <div className="flex flex-col md:flex-row gap-6 flex-grow">
+                <img
+                  src={loan.image}
+                  alt={loan.title}
+                  className="w-48 h-48 object-cover rounded-lg shadow-md"
+                />
+                <div className="flex flex-col flex-grow">
+                  <h2 className="text-2xl font-semibold mb-2">{loan.title}</h2>
+                  <p className="text-gray-600 mb-4">{loan.description}</p>
+                  <Link
+                    to="/personaldetails"
+                    className="inline-flex items-center justify-center rounded-md px-5 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    Apply Now
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Right buttons */}
+              <div className="flex flex-col gap-3 ml-6">
+                {buttonOptions(loan).map((btn, i) => (
+                  <button
+                    key={i}
+                    onClick={btn.action}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg shadow hover:bg-gray-200 transition"
+                  >
+                    {btn.icon}
+                    {btn.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {view === "eligibility" && (
+        <div className="max-w-lg mx-auto bg-white p-6 rounded-xl shadow">
+          <h2 className="text-xl font-bold mb-4">
+            Check Eligibility for {selectedLoan?.title}
+          </h2>
+          <p className="mb-4 text-gray-600">
+            Enter your details to check if you are eligible.
+          </p>
+          <input
+            placeholder="Monthly Income"
+            className="w-full mb-3 p-2 border rounded"
+          />
+          <input
+            placeholder="Employment Type"
+            className="w-full mb-3 p-2 border rounded"
+          />
+          <button
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Check Now
+          </button>
+          <button
+            onClick={() => setView("home")}
+            className="ml-4 px-4 py-2 bg-gray-500 text-white rounded"
+          >
+            Back
+          </button>
+        </div>
+      )}
+
+      {view === "emi" && (
+        <div className="max-w-lg mx-auto bg-white p-6 rounded-xl shadow">
+          <h2 className="text-xl font-bold mb-4">
+            EMI Calculator - {selectedLoan?.title}
+          </h2>
+          <input
+            type="number"
+            placeholder="Loan Amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="w-full mb-3 p-2 border rounded"
+          />
+          <input
+            type="number"
+            placeholder="Interest Rate (%)"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            className="w-full mb-3 p-2 border rounded"
+          />
+          <input
+            type="number"
+            placeholder="Tenure (months)"
+            value={tenure}
+            onChange={(e) => setTenure(e.target.value)}
+            className="w-full mb-3 p-2 border rounded"
+          />
+          <button
+            onClick={calculateEMI}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          >
+            Calculate
+          </button>
+          {emi && <p className="mt-4 font-bold">Your EMI: {emi}</p>}
+          <button
+            onClick={() => setView("home")}
+            className="mt-4 px-4 py-2 bg-gray-500 text-white rounded"
+          >
+            Back
+          </button>
+        </div>
+      )}
+
+      {view === "details" && (
+        <div className="max-w-lg mx-auto bg-white p-6 rounded-xl shadow">
+          <h2 className="text-xl font-bold mb-4">{selectedLoan?.title} Details</h2>
+          <p className="text-gray-700">{selectedLoan?.description}</p>
+          <button
+            onClick={() => setView("home")}
+            className="mt-4 px-4 py-2 bg-gray-500 text-white rounded"
+          >
+            Back
+          </button>
+        </div>
+      )}
+
+      {view === "contact" && (
+        <div className="max-w-lg mx-auto bg-white p-6 rounded-xl shadow">
+          <h2 className="text-xl font-bold mb-4">Contact Us - {selectedLoan?.title}</h2>
+          <input
+            placeholder="Your Name"
+            className="w-full mb-3 p-2 border rounded"
+          />
+          <input
+            placeholder="Email"
+            className="w-full mb-3 p-2 border rounded"
+          />
+          <textarea
+            placeholder="Message"
+            className="w-full mb-3 p-2 border rounded"
+          ></textarea>
+          <button
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Send
+          </button>
+          <button
+            onClick={() => setView("home")}
+            className="ml-4 px-4 py-2 bg-gray-500 text-white rounded"
+          >
+            Back
+          </button>
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
+export default BankingPage;
