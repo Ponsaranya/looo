@@ -1,0 +1,1199 @@
+Nice — below is all the code inline in the chat exactly as you asked: full frontend files and full Spring Boot backend files (ready to copy-paste). I include every import and every line so you can drop these into your project.
+
+
+---
+
+Frontend (React)
+
+Place these files under your React project (e.g. src/components/).
+
+src/components/PersonalDetails.jsx
+
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import ProgressBar from "./ProgressBar";
+import { ArrowRight, User, Bot, ArrowLeft } from "lucide-react";
+
+const PersonalDetails = () => {
+  const [formData, setFormData] = useState({
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    dob: "",
+    gender: "",
+    maritalStatus: "",
+    phoneNumber: "",
+    alternatePhone: "",
+    emailAddress: "",
+    aadhaarNumber: "",
+    panNumber: "",
+    currentAddress: "",
+    permanentAddress: "",
+  });
+
+  const [aadhaarFile, setAadhaarFile] = useState(null);
+  const [panFile, setPanFile] = useState(null);
+  const [isSameAddress, setIsSameAddress] = useState(false);
+  const [activeTab, setActiveTab] = useState("personal");
+  const navigate = useNavigate();
+
+  // Handle text/select inputs
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+
+    if (name === "currentAddress" && isSameAddress) {
+      setFormData((prev) => ({ ...prev, permanentAddress: value }));
+    }
+  };
+
+  // Copy current address to permanent if checked
+  const handleAddressToggle = () => {
+    setIsSameAddress((prev) => {
+      const next = !prev;
+      if (next) {
+        setFormData((prevData) => ({
+          ...prevData,
+          permanentAddress: prevData.currentAddress,
+        }));
+      } else {
+        // if turning off, leave permanentAddress as-is (user can edit)
+      }
+      return next;
+    });
+  };
+
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    if (name === "aadhaarFile") setAadhaarFile(file);
+    if (name === "panFile") setPanFile(file);
+  };
+
+  // Submit form as multipart/form-data
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      const fd = new FormData();
+
+      // Append all form fields
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          fd.append(key, value);
+        }
+      });
+
+      // Append files if present
+      if (aadhaarFile) fd.append("aadhaarFile", aadhaarFile);
+      if (panFile) fd.append("panFile", panFile);
+
+      const response = await fetch("http://localhost:9091/api/personal-details", {
+        method: "POST",
+        body: fd, // browser sets content-type including boundary
+      });
+
+      if (response.ok) {
+        const saved = await response.json();
+        alert("Personal details submitted successfully!\nID: " + saved.id);
+        navigate("/employmentdetails");
+      } else {
+        const text = await response.text();
+        alert("Failed to submit. Status: " + response.status + "\n" + text);
+      }
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      alert("Something went wrong. Check console for details.");
+    }
+  };
+
+  // Tab content
+  const renderPersonalDetails = () => (
+    <section>
+      <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+        <User className="w-5 h-5 text-indigo-600" /> Applicant Information
+      </h2>
+
+      {/* Name fields */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {["firstName", "middleName", "lastName"].map((field, idx) => (
+          <div key={idx}>
+            <label htmlFor={field} className="block text-sm font-medium text-gray-700">
+              {field === "firstName"
+                ? "First Name"
+                : field === "middleName"
+                ? "Middle Name (Optional)"
+                : "Last Name"}
+            </label>
+            <input
+              type="text"
+              id={field}
+              name={field}
+              placeholder={
+                field === "firstName"
+                  ? "John"
+                  : field === "middleName"
+                  ? "Smith"
+                  : "Doe"
+              }
+              value={formData[field]}
+              onChange={handleInputChange}
+              className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* DOB */}
+      <div className="mt-4">
+        <label htmlFor="dob" className="block text-sm font-medium text-gray-700">
+          Date of Birth
+        </label>
+        <input
+          type="date"
+          id="dob"
+          name="dob"
+          value={formData.dob}
+          onChange={handleInputChange}
+          className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        />
+      </div>
+
+      {/* Gender + Marital Status */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="gender" className="block text-sm font-medium text-gray-700">
+            Gender
+          </label>
+          <select
+            id="gender"
+            name="gender"
+            value={formData.gender}
+            onChange={handleInputChange}
+            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          >
+            <option value="">Select Gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label
+            htmlFor="maritalStatus"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Marital Status
+          </label>
+          <select
+            id="maritalStatus"
+            name="maritalStatus"
+            value={formData.maritalStatus}
+            onChange={handleInputChange}
+            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          >
+            <option value="">Select Marital Status</option>
+            <option value="single">Single</option>
+            <option value="married">Married</option>
+            <option value="divorced">Divorced</option>
+            <option value="widowed">Widowed</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Phone + Alternate Phone */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
+            Phone Number
+          </label>
+          <input
+            type="tel"
+            id="phoneNumber"
+            name="phoneNumber"
+            placeholder="(123) 456-7890"
+            value={formData.phoneNumber}
+            onChange={handleInputChange}
+            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="alternatePhone"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Alternate Phone
+          </label>
+          <input
+            type="tel"
+            id="alternatePhone"
+            name="alternatePhone"
+            placeholder="(987) 654-3210"
+            value={formData.alternatePhone}
+            onChange={handleInputChange}
+            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+        </div>
+      </div>
+
+      {/* Email */}
+      <div className="mt-4">
+        <label
+          htmlFor="emailAddress"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Email Address
+        </label>
+        <input
+          type="email"
+          id="emailAddress"
+          name="emailAddress"
+          placeholder="john.doe@example.com"
+          value={formData.emailAddress}
+          onChange={handleInputChange}
+          className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        />
+      </div>
+
+      {/* Aadhaar + PAN */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="aadhaarNumber" className="block text-sm font-medium text-gray-700">
+            Aadhaar Card Number
+          </label>
+          <input
+            type="text"
+            id="aadhaarNumber"
+            name="aadhaarNumber"
+            placeholder="XXXX XXXX XXXX"
+            value={formData.aadhaarNumber}
+            onChange={handleInputChange}
+            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="panNumber" className="block text-sm font-medium text-gray-700">
+            PAN Card Number
+          </label>
+          <input
+            type="text"
+            id="panNumber"
+            name="panNumber"
+            placeholder="ABCDE1234F"
+            value={formData.panNumber}
+            onChange={handleInputChange}
+            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+        </div>
+      </div>
+
+      {/* File upload inputs */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="aadhaarFile" className="block text-sm font-medium text-gray-700">Upload Aadhaar (PDF or Image)</label>
+          <input
+            id="aadhaarFile"
+            name="aadhaarFile"
+            type="file"
+            accept="application/pdf,image/*"
+            onChange={handleFileChange}
+            className="mt-1 w-full"
+          />
+          {aadhaarFile && <p className="text-sm mt-1">Selected: {aadhaarFile.name}</p>}
+        </div>
+
+        <div>
+          <label htmlFor="panFile" className="block text-sm font-medium text-gray-700">Upload PAN (PDF or Image)</label>
+          <input
+            id="panFile"
+            name="panFile"
+            type="file"
+            accept="application/pdf,image/*"
+            onChange={handleFileChange}
+            className="mt-1 w-full"
+          />
+          {panFile && <p className="text-sm mt-1">Selected: {panFile.name}</p>}
+        </div>
+      </div>
+
+      {/* Address */}
+      <div className="mt-4 space-y-4">
+        <div>
+          <label
+            htmlFor="currentAddress"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Current Address
+          </label>
+          <textarea
+            id="currentAddress"
+            name="currentAddress"
+            rows="3"
+            value={formData.currentAddress}
+            onChange={handleInputChange}
+            className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+        </div>
+
+        <div className="flex items-center">
+          <input
+            id="same-address"
+            type="checkbox"
+            checked={isSameAddress}
+            onChange={handleAddressToggle}
+            className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+          />
+          <label htmlFor="same-address" className="ml-2 block text-sm text-gray-900">
+            Permanent Address is the same as Current Address
+          </label>
+        </div>
+
+        {!isSameAddress && (
+          <div>
+            <label
+              htmlFor="permanentAddress"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Permanent Address
+            </label>
+            <textarea
+              id="permanentAddress"
+              name="permanentAddress"
+              rows="3"
+              value={formData.permanentAddress}
+              onChange={handleInputChange}
+              className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+        )}
+      </div>
+    </section>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
+      <ProgressBar currentStep={1} />
+
+      <button
+        onClick={() => navigate(-1)}
+        className="fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-lg text-gray-700 hover:bg-gray-200 transition-colors transform hover:scale-105"
+      >
+        <ArrowLeft className="w-5 h-5" /> Back
+      </button>
+
+      <div className="flex flex-col max-w-[88rem] md:flex-row w-full gap-8 items-start">
+        {/* Main form container */}
+        <div className="w-full md:w-3/4 bg-white rounded-2xl shadow-2xl overflow-hidden p-6 sm:p-10">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            Personal Details
+          </h1>
+          <p className="text-sm text-gray-600 mb-6">
+            Let's start with your personal and contact information.
+          </p>
+
+          {/* Tabs */}
+          <div className="flex border-b border-gray-200 mb-8">
+            <button
+              type="button"
+              onClick={() => setActiveTab("personal")}
+              className={`flex-1 py-3 px-1 text-center font-medium text-sm border-b-2 ${
+                activeTab === "personal"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <span className="flex items-center justify-center gap-2">
+                <User className="w-4 h-4" /> Personal Details
+              </span>
+            </button>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="min-h-[600px]"
+              >
+                {renderPersonalDetails()}
+              </motion.div>
+            </AnimatePresence>
+
+            <div className="flex justify-end mt-6">
+              <button
+                type="submit"
+                className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200"
+              >
+                Next <ArrowRight className="h-4 w-4 ml-2" />
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Chatbot placeholder */}
+        <div className="hidden md:block md:w-2/5 h-[80vh] bg-white rounded-2xl shadow-2xl p-6 border border-gray-200 overflow-y-auto sticky top-4">
+          <div className="flex items-center gap-3 text-indigo-600 mb-4 border-b pb-4">
+            <Bot className="w-6 h-6" />
+            <h3 className="text-lg font-bold">Your Loan Companion</h3>
+          </div>
+          <div className="text-gray-700 space-y-4">
+            <p>Hi there! I'm here to help you with your loan application.</p>
+            <p>Fill out your details carefully before moving to employment info.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PersonalDetails;
+
+
+---
+
+src/components/ProgressBar.jsx
+
+import React from "react";
+
+const ProgressBar = ({ currentStep = 1, steps = 5 }) => {
+  const percent = Math.round((currentStep / steps) * 100);
+
+  return (
+    <div className="w-full max-w-4xl mb-6">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-sm font-medium text-gray-700">Step {currentStep} of {steps}</div>
+        <div className="text-sm text-gray-500">{percent}%</div>
+      </div>
+
+      <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+        <div
+          className="h-2 rounded-full"
+          style={{ width: `${percent}%`, backgroundColor: "rgb(79 70 229)" }}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default ProgressBar;
+
+
+---
+
+Backend (Spring Boot) — full Java files
+
+Create a new Spring Boot project (Maven). Backend will run on port 9091 (configured in application.properties below). The code stores files inside PostgreSQL as LOBs and keeps file metadata (original filename & content type).
+
+Project structure (recommended)
+
+src/main/java/com/example/demo
+  ├─ DemoApplication.java
+  ├─ entity/PersonalDetails.java
+  ├─ repository/PersonalDetailsRepository.java
+  ├─ service/PersonalDetailsService.java
+  └─ controller/PersonalDetailsController.java
+
+src/main/resources
+  └─ application.properties
+pom.xml
+
+
+---
+
+pom.xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.example</groupId>
+    <artifactId>personal-details-demo</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>personal-details-demo</name>
+    <description>Demo app for PersonalDetails with file upload</description>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.0</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+
+    <properties>
+        <java.version>17</java.version>
+    </properties>
+
+    <dependencies>
+        <!-- Web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- JPA -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- PostgreSQL driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Jackson JSR310 for LocalDateTime -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
+        <!-- Validation (optional) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Spring Boot plugin -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>3.2.0</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+
+---
+
+src/main/java/com/example/demo/DemoApplication.java
+
+package com.example.demo;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class DemoApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(DemoApplication.class, args);
+    }
+}
+
+
+---
+
+src/main/java/com/example/demo/entity/PersonalDetails.java
+
+package com.example.demo.entity;
+
+import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "personal_details")
+public class PersonalDetails {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;   // single id
+
+    private String firstName;
+    private String middleName;
+    private String lastName;
+    private String dob; // store as string (ISO date), or change to LocalDate if desired
+    private String gender;
+    private String maritalStatus;
+    private String phoneNumber;
+    private String alternatePhone;
+    private String emailAddress;
+    private String aadhaarNumber;
+    private String panNumber;
+    private String currentAddress;
+    private String permanentAddress;
+
+    private LocalDateTime updatedAt = LocalDateTime.now();
+
+    // Aadhaar file stored as byte[] with metadata
+    @Lob
+    @JsonIgnore
+    @Column(name = "aadhaar_file")
+    private byte[] aadhaarFile;
+
+    private String aadhaarFileName;
+    private String aadhaarFileType;
+
+    // PAN file stored as byte[] with metadata
+    @Lob
+    @JsonIgnore
+    @Column(name = "pan_file")
+    private byte[] panFile;
+
+    private String panFileName;
+    private String panFileType;
+
+    // Getters and setters
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getMiddleName() {
+        return middleName;
+    }
+
+    public void setMiddleName(String middleName) {
+        this.middleName = middleName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getDob() {
+        return dob;
+    }
+
+    public void setDob(String dob) {
+        this.dob = dob;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public String getMaritalStatus() {
+        return maritalStatus;
+    }
+
+    public void setMaritalStatus(String maritalStatus) {
+        this.maritalStatus = maritalStatus;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public String getAlternatePhone() {
+        return alternatePhone;
+    }
+
+    public void setAlternatePhone(String alternatePhone) {
+        this.alternatePhone = alternatePhone;
+    }
+
+    public String getEmailAddress() {
+        return emailAddress;
+    }
+
+    public void setEmailAddress(String emailAddress) {
+        this.emailAddress = emailAddress;
+    }
+
+    public String getAadhaarNumber() {
+        return aadhaarNumber;
+    }
+
+    public void setAadhaarNumber(String aadhaarNumber) {
+        this.aadhaarNumber = aadhaarNumber;
+    }
+
+    public String getPanNumber() {
+        return panNumber;
+    }
+
+    public void setPanNumber(String panNumber) {
+        this.panNumber = panNumber;
+    }
+
+    public String getCurrentAddress() {
+        return currentAddress;
+    }
+
+    public void setCurrentAddress(String currentAddress) {
+        this.currentAddress = currentAddress;
+    }
+
+    public String getPermanentAddress() {
+        return permanentAddress;
+    }
+
+    public void setPermanentAddress(String permanentAddress) {
+        this.permanentAddress = permanentAddress;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public byte[] getAadhaarFile() {
+        return aadhaarFile;
+    }
+
+    public void setAadhaarFile(byte[] aadhaarFile) {
+        this.aadhaarFile = aadhaarFile;
+    }
+
+    public String getAadhaarFileName() {
+        return aadhaarFileName;
+    }
+
+    public void setAadhaarFileName(String aadhaarFileName) {
+        this.aadhaarFileName = aadhaarFileName;
+    }
+
+    public String getAadhaarFileType() {
+        return aadhaarFileType;
+    }
+
+    public void setAadhaarFileType(String aadhaarFileType) {
+        this.aadhaarFileType = aadhaarFileType;
+    }
+
+    public byte[] getPanFile() {
+        return panFile;
+    }
+
+    public void setPanFile(byte[] panFile) {
+        this.panFile = panFile;
+    }
+
+    public String getPanFileName() {
+        return panFileName;
+    }
+
+    public void setPanFileName(String panFileName) {
+        this.panFileName = panFileName;
+    }
+
+    public String getPanFileType() {
+        return panFileType;
+    }
+
+    public void setPanFileType(String panFileType) {
+        this.panFileType = panFileType;
+    }
+}
+
+
+---
+
+src/main/java/com/example/demo/repository/PersonalDetailsRepository.java
+
+package com.example.demo.repository;
+
+import com.example.demo.entity.PersonalDetails;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface PersonalDetailsRepository extends JpaRepository<PersonalDetails, Long> {
+}
+
+
+---
+
+src/main/java/com/example/demo/service/PersonalDetailsService.java
+
+package com.example.demo.service;
+
+import com.example.demo.entity.PersonalDetails;
+import com.example.demo.repository.PersonalDetailsRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+public class PersonalDetailsService {
+
+    private final PersonalDetailsRepository repository;
+
+    public PersonalDetailsService(PersonalDetailsRepository repository) {
+        this.repository = repository;
+    }
+
+    public PersonalDetails save(PersonalDetails details) {
+        return repository.save(details);
+    }
+
+    public Optional<PersonalDetails> getDetails(Long id) {
+        return repository.findById(id);
+    }
+
+    public List<PersonalDetails> getAll() {
+        return repository.findAll();
+    }
+
+    public Optional<PersonalDetails> update(Long id, PersonalDetails newDetails) {
+        return repository.findById(id).map(existing -> {
+            existing.setFirstName(newDetails.getFirstName());
+            existing.setMiddleName(newDetails.getMiddleName());
+            existing.setLastName(newDetails.getLastName());
+            existing.setDob(newDetails.getDob());
+            existing.setGender(newDetails.getGender());
+            existing.setMaritalStatus(newDetails.getMaritalStatus());
+            existing.setPhoneNumber(newDetails.getPhoneNumber());
+            existing.setAlternatePhone(newDetails.getAlternatePhone());
+            existing.setEmailAddress(newDetails.getEmailAddress());
+            existing.setAadhaarNumber(newDetails.getAadhaarNumber());
+            existing.setPanNumber(newDetails.getPanNumber());
+            existing.setCurrentAddress(newDetails.getCurrentAddress());
+            existing.setPermanentAddress(newDetails.getPermanentAddress());
+            existing.setUpdatedAt(newDetails.getUpdatedAt());
+            return repository.save(existing);
+        });
+    }
+
+    public void delete(Long id) {
+        repository.deleteById(id);
+    }
+
+    // Helpers for file handling
+
+    public PersonalDetails saveWithFiles(PersonalDetails details, MultipartFile aadhaarFile, MultipartFile panFile) throws IOException {
+        if (aadhaarFile != null && !aadhaarFile.isEmpty()) {
+            details.setAadhaarFile(aadhaarFile.getBytes());
+            details.setAadhaarFileName(aadhaarFile.getOriginalFilename());
+            details.setAadhaarFileType(aadhaarFile.getContentType());
+        }
+        if (panFile != null && !panFile.isEmpty()) {
+            details.setPanFile(panFile.getBytes());
+            details.setPanFileName(panFile.getOriginalFilename());
+            details.setPanFileType(panFile.getContentType());
+        }
+        return repository.save(details);
+    }
+
+    public byte[] getAadhaarFile(Long id) {
+        return repository.findById(id).map(PersonalDetails::getAadhaarFile).orElse(null);
+    }
+
+    public String getAadhaarFileName(Long id) {
+        return repository.findById(id).map(PersonalDetails::getAadhaarFileName).orElse(null);
+    }
+
+    public String getAadhaarFileType(Long id) {
+        return repository.findById(id).map(PersonalDetails::getAadhaarFileType).orElse(null);
+    }
+
+    public byte[] getPanFile(Long id) {
+        return repository.findById(id).map(PersonalDetails::getPanFile).orElse(null);
+    }
+
+    public String getPanFileName(Long id) {
+        return repository.findById(id).map(PersonalDetails::getPanFileName).orElse(null);
+    }
+
+    public String getPanFileType(Long id) {
+        return repository.findById(id).map(PersonalDetails::getPanFileType).orElse(null);
+    }
+}
+
+
+---
+
+src/main/java/com/example/demo/controller/PersonalDetailsController.java
+
+package com.example.demo.controller;
+
+import com.example.demo.entity.PersonalDetails;
+import com.example.demo.service.PersonalDetailsService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/api/personal-details")
+@CrossOrigin(origins = "http://localhost:3000") // allow your frontend origin; change as needed
+public class PersonalDetailsController {
+
+    private final PersonalDetailsService service;
+
+    public PersonalDetailsController(PersonalDetailsService service) {
+        this.service = service;
+    }
+
+    // Create with multipart/form-data (files optional)
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> create(
+            @RequestPart("body") Optional<PersonalDetails> bodyIgnored, // some clients send mixed; we will parse fields directly below
+            @RequestParam(value = "firstName", required = false) String firstName,
+            @RequestParam(value = "middleName", required = false) String middleName,
+            @RequestParam(value = "lastName", required = false) String lastName,
+            @RequestParam(value = "dob", required = false) String dob,
+            @RequestParam(value = "gender", required = false) String gender,
+            @RequestParam(value = "maritalStatus", required = false) String maritalStatus,
+            @RequestParam(value = "phoneNumber", required = false) String phoneNumber,
+            @RequestParam(value = "alternatePhone", required = false) String alternatePhone,
+            @RequestParam(value = "emailAddress", required = false) String emailAddress,
+            @RequestParam(value = "aadhaarNumber", required = false) String aadhaarNumber,
+            @RequestParam(value = "panNumber", required = false) String panNumber,
+            @RequestParam(value = "currentAddress", required = false) String currentAddress,
+            @RequestParam(value = "permanentAddress", required = false) String permanentAddress,
+            @RequestPart(value = "aadhaarFile", required = false) MultipartFile aadhaarFile,
+            @RequestPart(value = "panFile", required = false) MultipartFile panFile
+    ) {
+        try {
+            PersonalDetails details = new PersonalDetails();
+            details.setFirstName(firstName);
+            details.setMiddleName(middleName);
+            details.setLastName(lastName);
+            details.setDob(dob);
+            details.setGender(gender);
+            details.setMaritalStatus(maritalStatus);
+            details.setPhoneNumber(phoneNumber);
+            details.setAlternatePhone(alternatePhone);
+            details.setEmailAddress(emailAddress);
+            details.setAadhaarNumber(aadhaarNumber);
+            details.setPanNumber(panNumber);
+            details.setCurrentAddress(currentAddress);
+            details.setPermanentAddress(permanentAddress);
+
+            PersonalDetails saved = service.saveWithFiles(details, aadhaarFile, panFile);
+            return ResponseEntity.ok(saved);
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to save files: " + e.getMessage());
+        }
+    }
+
+    // Alternative JSON-only create endpoint (if frontend wants to POST JSON without files)
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE, path = "/json")
+    public ResponseEntity<PersonalDetails> createJson(@RequestBody PersonalDetails details) {
+        PersonalDetails saved = service.save(details);
+        return ResponseEntity.ok(saved);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PersonalDetails> getById(@PathVariable Long id) {
+        Optional<PersonalDetails> details = service.getDetails(id);
+        return details.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping
+    public ResponseEntity<List<PersonalDetails>> getAll() {
+        return ResponseEntity.ok(service.getAll());
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> update(
+            @PathVariable Long id,
+            @RequestBody PersonalDetails details
+    ) {
+        return service.update(id, details)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Download Aadhaar
+    @GetMapping("/{id}/aadhaar")
+    public ResponseEntity<byte[]> downloadAadhaar(@PathVariable Long id) {
+        byte[] file = service.getAadhaarFile(id);
+        if (file == null) return ResponseEntity.notFound().build();
+        String filename = service.getAadhaarFileName(id);
+        String contentType = service.getAadhaarFileType(id);
+        if (contentType == null) contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(contentType));
+        headers.setContentLength(file.length);
+        headers.setContentDispositionFormData("attachment", filename != null ? filename : "aadhaar");
+        return new ResponseEntity<>(file, headers, HttpStatus.OK);
+    }
+
+    // Download PAN
+    @GetMapping("/{id}/pan")
+    public ResponseEntity<byte[]> downloadPan(@PathVariable Long id) {
+        byte[] file = service.getPanFile(id);
+        if (file == null) return ResponseEntity.notFound().build();
+        String filename = service.getPanFileName(id);
+        String contentType = service.getPanFileType(id);
+        if (contentType == null) contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(contentType));
+        headers.setContentLength(file.length);
+        headers.setContentDispositionFormData("attachment", filename != null ? filename : "pan");
+        return new ResponseEntity<>(file, headers, HttpStatus.OK);
+    }
+}
+
+> Important note about the POST (multipart) endpoint: Some frontends send pure FormData fields; others bundle a JSON body part. The above @PostMapping handles typical multipart/form-data where fields are top-level form fields and files are aadhaarFile/panFile. The controller reads each @RequestParam field and the @RequestPart files. If your frontend sends a single JSON blob inside FormData under a body key, let me know and I’ll change the endpoint to parse that shape as well. The provided React PersonalDetails uses plain top-level form fields (no nested body).
+
+
+
+
+---
+
+src/main/resources/application.properties
+
+# Server port
+server.port=9091
+
+# Datasource (update username/password/url to match your local/postgres)
+spring.datasource.url=jdbc:postgresql://localhost:5432/demo_db
+spring.datasource.username=postgres
+spring.datasource.password=your_password_here
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# JPA
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation=true
+
+# Logging
+logging.level.org.springframework.web=INFO
+logging.level.org.hibernate.SQL=DEBUG
+
+
+---
+
+How to run
+
+1. Postgres
+
+Ensure PostgreSQL is running and create the DB demo_db (or change application.properties to the DB name you want).
+
+Update spring.datasource.username and spring.datasource.password.
+
+
+
+2. Backend
+
+Build and run:
+
+mvn clean package
+mvn spring-boot:run
+
+Backend defaults to http://localhost:9091.
+
+
+
+3. Frontend
+
+Ensure React dependencies installed:
+
+npm install
+
+Start React:
+
+npm start
+
+Frontend defaults to http://localhost:3000.
+
+
+
+4. Submit form
+
+Fill fields and attach Aadhaar and/or PAN files. On submit, frontend will POST multipart/form-data to http://localhost:9091/api/personal-details.
+
+
+
+5. Download files
+
+Aadhaar: GET /api/personal-details/{id}/aadhaar
+
+PAN: GET /api/personal-details/{id}/pan
+
+
+
+
+
+---
+
+Extra suggestions (optional, recommended)
+
+Add validations on both sides: restrict file size (e.g., max 5MB) and allowed MIME types (image/*, application/pdf).
+
+For production or many/large files, store files in S3 (or filesystem) and keep only URLs in DB — better for DB size & backup speed.
+
+Add server-side checks to ensure sensitive fields (Aadhaar, PAN) are masked when returning lists (or restrict who can view them).
+
+Consider encrypting file bytes in DB at rest if required by your security policy.
+
+
+
+---
+
+If you want, I can:
+
+Add client-side validation (file size/type) to the React component.
+
+Replace the @PostMapping handler to accept a single JSON body part plus files (if your frontend prefers that exact payload).
+
+Convert backend to filesystem or AWS S3 storage and give full code for that.
+
+
+Which of these would you like next?
+
