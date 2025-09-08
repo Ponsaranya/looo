@@ -1,0 +1,157 @@
+import React, { useState } from 'react';
+import { ArrowRight, ArrowLeft, Calculator, FileText, Phone, Award } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+
+const loanOptions = [
+  {
+    title: "Personal Loan",
+    description: "A flexible loan to cover personal expenses. Whether you're consolidating high-interest debt, paying for a wedding, or covering unexpected medical bills.",
+    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1000&q=80",
+    color: {
+      accent: 'bg-blue-600',
+      accentHover: 'hover:bg-blue-700',
+      ring: 'focus:ring-blue-500',
+      light: 'bg-blue-100',
+      text: 'text-blue-600'
+    }
+  },
+  {
+    title: "Home Loan",
+    description: "Secure financing to help you purchase a new home or refinance your existing mortgage.",
+    image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80",
+    color: {
+      accent: 'bg-green-600',
+      accentHover: 'hover:bg-green-700',
+      ring: 'focus:ring-green-500',
+      light: 'bg-green-100',
+      text: 'text-green-600'
+    }
+  },
+  {
+    title: "Vehicle Loan",
+    description: "Financing options to help you buy a new or used car, truck, or motorcycle.",
+    image: "https://images.unsplash.com/photo-1681351623077-e4cc438f0548?auto=format&fit=crop&w=1000&q=80",
+    color: {
+      accent: 'bg-blue-600',
+      accentHover: 'hover:bg-blue-700',
+      ring: 'focus:ring-blue-500',
+      light: 'bg-blue-100',
+      text: 'text-blue-600'
+    }
+  },
+  {
+    title: "Education Loan",
+    description: "Loans to help cover the cost of tuition, books, and living expenses for students.",
+    image: "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&w=1000&q=80",
+    color: {
+      accent: 'bg-green-600',
+      accentHover: 'hover:bg-green-700',
+      ring: 'focus:ring-green-500',
+      light: 'bg-green-100',
+      text: 'text-green-600'
+    }
+  },
+];
+
+const BankingPage = () => {
+  const [showModal, setShowModal] = useState(false);
+  const [modalContent, setModalContent] = useState(null);
+
+  const buttonOptions = (loan) => [
+    { name: 'Check Eligibility', icon: <Award className="w-5 h-5" /> },
+    { name: 'EMI Calculator', icon: <Calculator className="w-5 h-5" /> },
+    { name: 'Know More', icon: <FileText className="w-5 h-5" /> },
+    { name: 'Contact Us', icon: <Phone className="w-5 h-5" /> },
+  ];
+
+  const navigate = useNavigate();
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, x: "100%" }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: "-100%" }}
+      transition={{ type: "tween", ease: "easeInOut", duration: 0.5 }}
+    >
+      <div className="min-h-screen bg-gradient-to-br from-gray-100 via-blue-100 to-green-100 flex flex-col items-center p-6">
+        
+        {/* Back button */}
+        <button
+          onClick={() => navigate(-1)}
+          className="fixed top-4 left-4 flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-lg text-gray-700 hover:bg-gray-200 transition"
+        >
+          <ArrowLeft className="w-5 h-5" /> Back
+        </button>
+
+        {/* Header */}
+        <div className="w-full max-w-5xl text-center mb-10 mt-8">
+          <h1 className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 via-green-600 to-blue-700 bg-clip-text text-transparent">
+            Explore Our Loan Options
+          </h1>
+          <p className="text-base text-gray-600 max-w-3xl mx-auto">
+            We offer a variety of loan products designed to meet your specific needs. Choose an option below.
+          </p>
+        </div>
+
+        {/* Loan Cards */}
+        <div className="w-full max-w-5xl flex flex-col gap-8">
+          {loanOptions.map((loan, index) => (
+            <div key={index} className="relative flex items-center w-full bg-white rounded-xl shadow-xl p-6">
+              
+              {/* Image */}
+              <div className="w-1/3 p-4">
+                <img src={loan.image} alt={loan.title} className="w-64 h-64 mx-auto rounded-lg object-cover shadow-lg" />
+              </div>
+
+              {/* Loan Info */}
+              <div className="w-2/3 flex flex-col p-4">
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">{loan.title}</h2>
+                <p className="text-sm text-gray-600 flex-grow mb-4">{loan.description}</p>
+                <Link to="/personaldetails" className={`mt-auto inline-flex items-center justify-center rounded-md ${loan.color.accent} px-5 py-2 text-sm font-medium text-white shadow-sm ${loan.color.accentHover}`}>
+                  Apply Now <ArrowRight className="h-4 w-4 ml-2" />
+                </Link>
+              </div>
+
+              {/* Buttons (right side) */}
+              <div className="flex flex-col gap-3 ml-6">
+                {buttonOptions(loan).map((btn, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      setModalContent(`${btn.name} for ${loan.title}`);
+                      setShowModal(true);
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg shadow hover:bg-gray-200 transition ${loan.color.text}`}
+                  >
+                    {btn.icon}
+                    {btn.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Modal */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+              <h2 className="text-xl font-bold mb-4">{modalContent}</h2>
+              <p className="text-gray-600">This is a pop-up for <strong>{modalContent}</strong>.</p>
+              <button
+                onClick={() => setShowModal(false)}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </motion.div>
+  );
+};
+
+export default BankingPage;
