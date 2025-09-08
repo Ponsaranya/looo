@@ -1,0 +1,102 @@
+import React from 'react';
+import { ArrowRight, ArrowLeft, Calculator, FileText, Phone, Award } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+
+const loanOptions = [
+  {
+    title: "Personal Loan",
+    description: "A flexible loan to cover personal expenses. Whether you're consolidating high-interest debt, paying for a wedding, or covering unexpected medical bills, a personal loan can provide the financial breathing room you need.",
+    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1000&q=80",
+    color: {
+      accent: 'bg-sc-blue-600',
+      accentHover: 'hover:bg-sc-blue-700',
+      ring: 'focus:ring-sc-blue-500',
+      text: 'text-sc-blue-600'
+    },
+  },
+  {
+    title: "Home Loan",
+    description: "Secure financing to help you purchase a new home or refinance your existing mortgage.",
+    image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80",
+    color: {
+      accent: 'bg-sc-green-600',
+      accentHover: 'hover:bg-sc-green-700',
+      ring: 'focus:ring-sc-green-500',
+      text: 'text-sc-green-600'
+    },
+  },
+];
+
+const BankingPage = () => {
+  const navigate = useNavigate();
+
+  const buttonOptions = (loan) => [
+    { name: 'Check Eligibility', icon: <Award className="w-5 h-5" />, action: () => alert('Check Eligibility clicked for ' + loan.title) },
+    { name: 'EMI Calculator', icon: <Calculator className="w-5 h-5" />, action: () => alert('EMI Calculator clicked for ' + loan.title) },
+    { name: 'Know More', icon: <FileText className="w-5 h-5" />, action: () => alert('Know More clicked for ' + loan.title) },
+    { name: 'Contact Us', icon: <Phone className="w-5 h-5" />, action: () => alert('Contact Us clicked for ' + loan.title) },
+  ];
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, x: "100%" }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: "-100%" }}
+      transition={{ type: "tween", ease: "easeInOut", duration: 0.5 }}
+    >
+      <div className="min-h-screen bg-gradient-to-br from-gray-100 via-blue-100 to-green-100 flex flex-col items-center p-6">
+        
+        <button
+          onClick={() => navigate(-1)}
+          className="fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-lg text-gray-700 hover:bg-gray-200 transition"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Back
+        </button>
+
+        <h1 className="text-3xl font-bold mb-8">Explore Our Loan Options</h1>
+
+        <div className="w-full max-w-5xl flex flex-col gap-8">
+          {loanOptions.map((loan, index) => (
+            <div key={index} className="relative flex items-center bg-white rounded-xl shadow-lg p-6">
+              
+              {/* Left Side: Loan content */}
+              <div className="flex flex-col md:flex-row gap-6 flex-grow">
+                <img src={loan.image} alt={loan.title} className="w-48 h-48 object-cover rounded-lg shadow-md" />
+                <div className="flex flex-col flex-grow">
+                  <h2 className="text-2xl font-semibold mb-2">{loan.title}</h2>
+                  <p className="text-gray-600 mb-4">{loan.description}</p>
+                  <Link
+                    to="/personaldetails"
+                    className={`inline-flex items-center justify-center rounded-md px-5 py-2 text-sm font-medium text-white shadow-sm ${loan.color.accent} ${loan.color.accentHover}`}
+                  >
+                    Apply Now
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Right Side: Buttons stacked */}
+              <div className="flex flex-col gap-3 ml-6">
+                {buttonOptions(loan).map((button, i) => (
+                  <button
+                    key={i}
+                    onClick={button.action}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg shadow hover:bg-gray-200 transition"
+                  >
+                    {button.icon}
+                    <span>{button.name}</span>
+                  </button>
+                ))}
+              </div>
+
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+export default BankingPage;
