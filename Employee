@@ -1,0 +1,158 @@
+import React, { useState } from "react";
+
+const EmploymentDetails = () => {
+  const [formData, setFormData] = useState({
+    occupationType: "",
+    employerName: "",
+    designation: "",
+    annualIncome: "",
+    workExperience: "",
+    location: "",
+    officeAddress: "",
+    attachments: {
+      salaryProof: null,
+      employmentProof: null,
+      businessProof: null,
+      gstCertificate: null,
+      itr: null,
+      bankStatements: null,
+    },
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    setFormData({
+      ...formData,
+      attachments: { ...formData.attachments, [name]: files[0] },
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const formDataToSend = new FormData();
+    formDataToSend.append("occupationType", formData.occupationType);
+    formDataToSend.append("employerName", formData.employerName);
+    formDataToSend.append("designation", formData.designation);
+    formDataToSend.append("annualIncome", formData.annualIncome);
+    formDataToSend.append("workExperience", formData.workExperience);
+    formDataToSend.append("location", formData.location);
+    formDataToSend.append("officeAddress", formData.officeAddress);
+
+    Object.keys(formData.attachments).forEach((key) => {
+      if (formData.attachments[key]) {
+        formDataToSend.append(key, formData.attachments[key]);
+      }
+    });
+
+    try {
+      const response = await fetch("http://localhost:8080/api/employment/save", {
+        method: "POST",
+        body: formDataToSend,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert("Employment details submitted successfully!");
+        console.log("Saved:", data);
+      } else {
+        alert("Failed to save employment details.");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Something went wrong.");
+    }
+  };
+
+  return (
+    <div className="form-container">
+      <h2>Employment Details</h2>
+      <form onSubmit={handleSubmit}>
+
+        <label>Occupation Type</label>
+        <input
+          type="text"
+          name="occupationType"
+          value={formData.occupationType}
+          onChange={handleChange}
+        />
+
+        <label>Employer Name</label>
+        <input
+          type="text"
+          name="employerName"
+          value={formData.employerName}
+          onChange={handleChange}
+        />
+
+        <label>Designation</label>
+        <input
+          type="text"
+          name="designation"
+          value={formData.designation}
+          onChange={handleChange}
+        />
+
+        <label>Annual Income</label>
+        <input
+          type="text"
+          name="annualIncome"
+          value={formData.annualIncome}
+          onChange={handleChange}
+        />
+
+        <label>Work Experience</label>
+        <input
+          type="text"
+          name="workExperience"
+          value={formData.workExperience}
+          onChange={handleChange}
+        />
+
+        <label>Location</label>
+        <input
+          type="text"
+          name="location"
+          value={formData.location}
+          onChange={handleChange}
+        />
+
+        <label>Office Address</label>
+        <textarea
+          name="officeAddress"
+          value={formData.officeAddress}
+          onChange={handleChange}
+        />
+
+        {/* Attachments Section - directly after officeAddress */}
+        <h3>Attachments</h3>
+        <label>Salary Proof</label>
+        <input type="file" name="salaryProof" onChange={handleFileChange} />
+
+        <label>Employment Proof</label>
+        <input type="file" name="employmentProof" onChange={handleFileChange} />
+
+        <label>Business Proof</label>
+        <input type="file" name="businessProof" onChange={handleFileChange} />
+
+        <label>GST Certificate</label>
+        <input type="file" name="gstCertificate" onChange={handleFileChange} />
+
+        <label>ITR</label>
+        <input type="file" name="itr" onChange={handleFileChange} />
+
+        <label>Bank Statements</label>
+        <input type="file" name="bankStatements" onChange={handleFileChange} />
+
+        <button type="submit">Submit</button>
+      </form>
+    </div>
+  );
+};
+
+export default EmploymentDetails;
