@@ -1,0 +1,325 @@
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import ProgressBar from "./ProgressBar";
+import { ArrowLeft, Briefcase, Upload } from "lucide-react";
+
+const cities = [
+  "New York",
+  "San Francisco",
+  "London",
+  "Toronto",
+  "Mumbai",
+  "Bengaluru",
+  "Gurugram",
+  "Delhi",
+  "Chennai",
+];
+
+const EmploymentDetails = () => {
+  const [formData, setFormData] = useState({
+    occupationType: "",
+    employerName: "",
+    designation: "",
+    annualIncome: "",
+    workExperience: "",
+    location: "",
+    officeAddress: "",
+    salaryProof: null,
+    employmentProof: null,
+    businessProof: null,
+    gstCertificate: null,
+    itr: null,
+    bankStatements: null,
+  });
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: files[0],
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const payload = new FormData();
+    Object.keys(formData).forEach((key) => {
+      if (formData[key]) {
+        payload.append(key, formData[key]);
+      }
+    });
+
+    try {
+      const response = await fetch("http://localhost:8080/api/employment/save", {
+        method: "POST",
+        body: payload,
+      });
+      if (response.ok) {
+        alert("Employment details submitted successfully!");
+      } else {
+        alert("Failed to save employment details.");
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      alert("Something went wrong.");
+    }
+  };
+
+  const navigate = useNavigate();
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
+      <ProgressBar currentStep={2} />
+      <button
+        onClick={() => navigate(-1)}
+        className="fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-lg text-gray-700 hover:bg-gray-200 transition-colors transform hover:scale-105"
+      >
+        <ArrowLeft className="w-5 h-5" />
+        Back
+      </button>
+
+      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden p-6 sm:p-10">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+          Employment Details
+        </h1>
+        <p className="text-sm text-gray-600 mb-6">
+          Tell us about your professional background and upload required
+          documents.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <section>
+            <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <Briefcase className="w-5 h-5 text-indigo-600" />
+              Work Information
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Occupation Type
+                </label>
+                <select
+                  name="occupationType"
+                  value={formData.occupationType}
+                  onChange={handleInputChange}
+                  className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                >
+                  <option value="">Select Occupation Type</option>
+                  <option value="Employed">Employed</option>
+                  <option value="Self-Employed">Self-Employed</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Annual Income (₹)
+                </label>
+                <input
+                  type="number"
+                  name="annualIncome"
+                  value={formData.annualIncome}
+                  onChange={handleInputChange}
+                  className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                />
+              </div>
+            </div>
+
+            {formData.occupationType === "Employed" && (
+              <AnimatePresence>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Employer Name
+                    </label>
+                    <input
+                      type="text"
+                      name="employerName"
+                      value={formData.employerName}
+                      onChange={handleInputChange}
+                      className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Designation
+                    </label>
+                    <input
+                      type="text"
+                      name="designation"
+                      value={formData.designation}
+                      onChange={handleInputChange}
+                      className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Work Experience (Years)
+                    </label>
+                    <input
+                      type="number"
+                      name="workExperience"
+                      value={formData.workExperience}
+                      onChange={handleInputChange}
+                      className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Location
+                    </label>
+                    <select
+                      name="location"
+                      value={formData.location}
+                      onChange={handleInputChange}
+                      className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    >
+                      <option value="">Select a City</option>
+                      {cities.map((city, idx) => (
+                        <option key={idx} value={city}>
+                          {city}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Office Address
+                    </label>
+                    <textarea
+                      name="officeAddress"
+                      value={formData.officeAddress}
+                      onChange={handleInputChange}
+                      rows="3"
+                      className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    ></textarea>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            )}
+
+            {formData.occupationType === "Self-Employed" && (
+              <AnimatePresence>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Business Name
+                    </label>
+                    <input
+                      type="text"
+                      name="employerName"
+                      value={formData.employerName}
+                      onChange={handleInputChange}
+                      className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Business Experience (Years)
+                    </label>
+                    <input
+                      type="number"
+                      name="workExperience"
+                      value={formData.workExperience}
+                      onChange={handleInputChange}
+                      className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Business Address
+                    </label>
+                    <textarea
+                      name="officeAddress"
+                      value={formData.officeAddress}
+                      onChange={handleInputChange}
+                      rows="3"
+                      className="mt-1 w-full p-3 rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    ></textarea>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            )}
+          </section>
+
+          {/* Attachments under Office Address */}
+          <section>
+            <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <Upload className="w-5 h-5 text-indigo-600" />
+              Attachments
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Salary Proof
+                </label>
+                <input type="file" name="salaryProof" onChange={handleFileChange} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Employment Proof
+                </label>
+                <input type="file" name="employmentProof" onChange={handleFileChange} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Business Proof
+                </label>
+                <input type="file" name="businessProof" onChange={handleFileChange} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  GST Certificate
+                </label>
+                <input type="file" name="gstCertificate" onChange={handleFileChange} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  ITR
+                </label>
+                <input type="file" name="itr" onChange={handleFileChange} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Bank Statements
+                </label>
+                <input type="file" name="bankStatements" onChange={handleFileChange} />
+              </div>
+            </div>
+          </section>
+
+          <div className="flex justify-end mt-6">
+            <button
+              type="submit"
+              className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-6 py-3 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200"
+            >
+              Submit
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default EmploymentDetails;
