@@ -1,0 +1,295 @@
+Got it ✅ — you already did PersonalDetails (frontend + backend), and now you want to extend the same flow for EmploymentDetails with file attachments.
+
+I’ll give you step-by-step backend + frontend code so that when you hit Submit in your form, it saves to the backend.
+
+
+---
+
+🔹 Backend (Spring Boot)
+
+We’ll create:
+
+Entity → EmploymentDetails
+
+DTO → request/response objects
+
+Repository → DB layer
+
+Service → business logic
+
+Controller → REST API
+
+
+We’ll use Multipart upload for attachments (salary proof, bank statements, etc.).
+
+
+---
+
+1. EmploymentDetails.java (Entity)
+
+package com.example.backend.entity;
+
+import jakarta.persistence.*;
+import java.util.Date;
+
+@Entity
+@Table(name = "employment_details")
+public class EmploymentDetails {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String occupationType;
+    private String employerName;
+    private String designation;
+    private String annualIncome;
+    private String workExperience;
+    private String location;
+
+    @Column(length = 1000)
+    private String officeAddress;
+
+    // File paths or names for uploaded files
+    private String salaryProof;
+    private String employmentProof;
+    private String businessProof;
+    private String gstCertificate;
+    private String itr;
+    private String bankStatements;
+
+    private Date createdAt = new Date();
+
+    // getters and setters
+    // ...
+}
+
+
+---
+
+2. EmploymentDetailsRepository.java
+
+package com.example.backend.repository;
+
+import com.example.backend.entity.EmploymentDetails;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface EmploymentDetailsRepository extends JpaRepository<EmploymentDetails, Long> {
+}
+
+
+---
+
+3. EmploymentDetailsService.java
+
+package com.example.backend.service;
+
+import com.example.backend.entity.EmploymentDetails;
+import com.example.backend.repository.EmploymentDetailsRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
+import java.io.IOException;
+
+@Service
+public class EmploymentDetailsService {
+
+    @Autowired
+    private EmploymentDetailsRepository repository;
+
+    private final String uploadDir = "uploads/employment/";
+
+    public EmploymentDetails saveEmploymentDetails(
+            String occupationType,
+            String employerName,
+            String designation,
+            String annualIncome,
+            String workExperience,
+            String location,
+            String officeAddress,
+            MultipartFile salaryProof,
+            MultipartFile employmentProof,
+            MultipartFile businessProof,
+            MultipartFile gstCertificate,
+            MultipartFile itr,
+            MultipartFile bankStatements
+    ) throws IOException {
+
+        EmploymentDetails details = new EmploymentDetails();
+        details.setOccupationType(occupationType);
+        details.setEmployerName(employerName);
+        details.setDesignation(designation);
+        details.setAnnualIncome(annualIncome);
+        details.setWorkExperience(workExperience);
+        details.setLocation(location);
+        details.setOfficeAddress(officeAddress);
+
+        // save files
+        if (!new File(uploadDir).exists()) {
+            new File(uploadDir).mkdirs();
+        }
+
+        if (salaryProof != null) {
+            String path = uploadDir + salaryProof.getOriginalFilename();
+            salaryProof.transferTo(new File(path));
+            details.setSalaryProof(path);
+        }
+        if (employmentProof != null) {
+            String path = uploadDir + employmentProof.getOriginalFilename();
+            employmentProof.transferTo(new File(path));
+            details.setEmploymentProof(path);
+        }
+        if (businessProof != null) {
+            String path = uploadDir + businessProof.getOriginalFilename();
+            businessProof.transferTo(new File(path));
+            details.setBusinessProof(path);
+        }
+        if (gstCertificate != null) {
+            String path = uploadDir + gstCertificate.getOriginalFilename();
+            gstCertificate.transferTo(new File(path));
+            details.setGstCertificate(path);
+        }
+        if (itr != null) {
+            String path = uploadDir + itr.getOriginalFilename();
+            itr.transferTo(new File(path));
+            details.setItr(path);
+        }
+        if (bankStatements != null) {
+            String path = uploadDir + bankStatements.getOriginalFilename();
+            bankStatements.transferTo(new File(path));
+            details.setBankStatements(path);
+        }
+
+        return repository.save(details);
+    }
+}
+
+
+---
+
+4. EmploymentDetailsController.java
+
+package com.example.backend.controller;
+
+import com.example.backend.entity.EmploymentDetails;
+import com.example.backend.service.EmploymentDetailsService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+@RestController
+@RequestMapping("/api/employment")
+@CrossOrigin(origins = "http://localhost:3000")
+public class EmploymentDetailsController {
+
+    @Autowired
+    private EmploymentDetailsService service;
+
+    @PostMapping("/save")
+    public ResponseEntity<EmploymentDetails> saveEmploymentDetails(
+            @RequestParam String occupationType,
+            @RequestParam(required = false) String employerName,
+            @RequestParam(required = false) String designation,
+            @RequestParam(required = false) String annualIncome,
+            @RequestParam(required = false) String workExperience,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) String officeAddress,
+            @RequestParam(required = false) MultipartFile salaryProof,
+            @RequestParam(required = false) MultipartFile employmentProof,
+            @RequestParam(required = false) MultipartFile businessProof,
+            @RequestParam(required = false) MultipartFile gstCertificate,
+            @RequestParam(required = false) MultipartFile itr,
+            @RequestParam(required = false) MultipartFile bankStatements
+    ) {
+        try {
+            EmploymentDetails saved = service.saveEmploymentDetails(
+                    occupationType,
+                    employerName,
+                    designation,
+                    annualIncome,
+                    workExperience,
+                    location,
+                    officeAddress,
+                    salaryProof,
+                    employmentProof,
+                    businessProof,
+                    gstCertificate,
+                    itr,
+                    bankStatements
+            );
+            return ResponseEntity.ok(saved);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+}
+
+
+---
+
+🔹 Frontend (React)
+
+In your EmploymentDetails.jsx, update handleSubmit to actually send to backend with FormData (important for files).
+
+Update handleSubmit
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  const formDataToSend = new FormData();
+  formDataToSend.append("occupationType", formData.occupationType);
+  formDataToSend.append("employerName", formData.employerName);
+  formDataToSend.append("designation", formData.designation);
+  formDataToSend.append("annualIncome", formData.annualIncome);
+  formDataToSend.append("workExperience", formData.workExperience);
+  formDataToSend.append("location", formData.location);
+  formDataToSend.append("officeAddress", formData.officeAddress);
+
+  Object.keys(formData.attachments).forEach((key) => {
+    if (formData.attachments[key]) {
+      formDataToSend.append(key, formData.attachments[key]);
+    }
+  });
+
+  try {
+    const response = await fetch("http://localhost:8080/api/employment/save", {
+      method: "POST",
+      body: formDataToSend,
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log("Saved successfully:", data);
+      alert("Employment details saved!");
+    } else {
+      console.error("Failed to save employment details");
+      alert("Failed to save employment details");
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Error occurred while saving employment details");
+  }
+};
+
+Now, when you click Submit, all fields + attachments will go to backend and be stored.
+
+
+---
+
+✅ You now have:
+
+Full backend CRUD setup (Entity, Repository, Service, Controller).
+
+Frontend integration with FormData for file uploads.
+
+Attachments stored under uploads/employment/ in backend project.
+
+
+
+---
+
+Do you also want me to add a GET API (to fetch Employment details back and display in frontend), same as you did for PersonalDetails?
+
