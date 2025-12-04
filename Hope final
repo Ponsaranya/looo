@@ -1,0 +1,160 @@
+# ===============================
+# 1️⃣ Import Libraries
+# ===============================
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.cluster import KMeans
+import re
+
+# ===============================
+# 2️⃣ Load Dataset
+# ===============================
+df = pd.read_csv("your_dataset.csv")
+
+# Clean column names (strip spaces)
+df.columns = df.columns.str.strip()
+
+# ===============================
+# 3️⃣ Identify Features
+# ===============================
+numeric_features = df.select_dtypes(include=['int64','float64']).columns.tolist()
+cat_features = df.select_dtypes(include=['object']).columns.tolist()
+
+# Remove customer ID and target columns from features
+for col in ['CustomerID', 'Loan_type', 'credit_cardtype', 'investment_type', 'savings_plan_type']:
+    if col in numeric_features:
+        numeric_features.remove(col)
+    if col in cat_features:
+        cat_features.remove(col)
+
+# ===============================
+# 4️⃣ Preprocessing Pipeline
+# ===============================
+numeric_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='median')),
+    ('scaler', StandardScaler())
+])
+
+categorical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='most_frequent')),
+    ('onehot', OneHotEncoder(sparse_output=False, handle_unknown='ignore'))
+])
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numeric_transformer, numeric_features),
+        ('cat', categorical_transformer, cat_features)
+    ]
+)
+
+# ===============================
+# 5️⃣ Customer Segmentation (Clustering)
+# ===============================
+X_features = preprocessor.fit_transform(df[numeric_features + cat_features])
+kmeans = KMeans(n_clusters=5, random_state=42)
+df['cluster'] = kmeans.fit_predict(X_features)
+
+# ===============================
+# 6️⃣ Train Classifiers for Each Product
+# ===============================
+def train_classifier(target_col):
+    y = df[target_col].astype(str).fillna('None')
+    le = LabelEncoder()
+    y_encoded = le.fit_transform(y)
+    clf = Pipeline(steps=[
+        ('preprocessor', preprocessor),
+        ('classifier', RandomForestClassifier(n_estimators=100, random_state=42))
+    ])
+    clf.fit(df[numeric_features + cat_features], y_encoded)
+    return clf, le
+
+loan_clf, loan_le = train_classifier('Loan_type')
+cc_clf, cc_le = train_classifier('credit_cardtype')
+inv_clf, inv_le = train_classifier('investment_type')
+savings_clf, savings_le = train_classifier('savings_plan_type')
+
+# ===============================
+# 7️⃣ Dynamic Recommendation Function
+# ===============================
+def recommend(customer_ids, product_type='loan', top_n=3):
+    if isinstance(customer_ids, str):
+        customer_ids = [customer_ids]
+
+    product_map = {
+        'loan': (loan_clf, loan_le, 'Loan_type'),
+        'credit_card': (cc_clf, cc_le, 'credit_cardtype'),
+        'investment': (inv_clf, inv_le, 'investment_type'),
+        'savings': (savings_clf, savings_le, 'savings_plan_type')
+    }
+    
+    if product_type not in product_map:
+        return f"Product type must be one of {list(product_map.keys())}"
+
+    clf, le, col_name = product_map[product_type]
+    output = {}
+
+    for cust_id in customer_ids:
+        customer = df[df['CustomerID'] == cust_id]
+        if customer.empty:
+            output[cust_id] = f"Customer {cust_id} not found"
+            continue
+        
+        X_cust = customer[numeric_features + cat_features]
+        probs = clf.predict_proba(X_cust)[0]
+        types = le.inverse_transform(np.arange(len(probs)))
+        prob_df = pd.DataFrame({'type': types, 'probability': probs}).sort_values(by='probability', ascending=False).head(top_n)
+
+        cluster_id = int(customer['cluster'].values[0])
+        cluster_customers = df[df['cluster'] == cluster_id]
+        popular = cluster_customers[col_name].value_counts().head(top_n).to_dict()
+
+        output[cust_id] = {
+            'cluster_id': cluster_id,
+            'recommended_products': prob_df.to_dict(orient='records'),
+            'popular_in_cluster': popular
+        }
+    return output
+
+# ===============================
+# 8️⃣ Chat-Style Input Function
+# ===============================
+def chat_recommend(user_input):
+    product_keywords = {
+        'loan': ['loan', 'personal loan', 'home loan', 'car loan', 'education loan'],
+        'credit_card': ['credit card', 'cc'],
+        'investment': ['investment', 'mutual fund', 'sip', 'stock'],
+        'savings': ['savings', 'savings plan', 'fd', 'rd']
+    }
+    
+    product_type = None
+    for key, keywords in product_keywords.items():
+        for kw in keywords:
+            if re.search(kw, user_input, re.IGNORECASE):
+                product_type = key
+                break
+        if product_type:
+            break
+    if not product_type:
+        return "Sorry, I couldn't detect the product type. Please mention loan, credit card, investment, or savings."
+
+    customer_ids = re.findall(r'C\d+', user_input)
+    if not customer_ids:
+        return "Sorry, I couldn't detect any CustomerID in your input."
+
+    return recommend(customer_ids, product_type=product_type)
+
+# ===============================
+# 9️⃣ Example Chat Usage
+# ===============================
+while True:
+    user_input = input("You: ")
+    if user_input.lower() in ['exit', 'quit']:
+        print("Chat ended.")
+        break
+    response = chat_recommend(user_input)
+    print("Bot:", response)
