@@ -1,0 +1,346 @@
+Nice — looks like you’ve got a transactional/customer dataset and you want a model that, when given a CustomerID (and optionally a moment in time), returns a loan recommendation for that customer. Below I’ll walk you step-by-step through a practical pipeline you can run now (pandas + scikit-learn). The pipeline:
+
+1. load & inspect the CSV
+
+
+2. clean & engineer per-customer features (balances, transaction stats, recency, age, categorical encodings)
+
+
+3. create customer segments (KMeans clustering) to group similar customers
+
+
+4. train a classifier to predict loan_type (the product to recommend) using customer features
+
+
+5. provide a recommend_for(customer_id) function that returns top loan suggestions (probabilities) and cluster-based recommendations
+
+
+6. evaluation + ideas to improve (time-aware models, collaborative filtering)
+
+
+
+You can run this in a notebook. I’ll assume your CSV is updated_dataset.csv and columns are similar to the screenshots (adjust names if needed).
+
+
+---
+
+0. Libraries
+
+import pandas as pd
+import numpy as np
+from datetime import datetime
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+
+from sklearn.cluster import KMeans
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, accuracy_score
+
+
+---
+
+1. Load and quick inspect
+
+df = pd.read_csv("updated_dataset.csv", parse_dates=["TransactionDate"], dayfirst=True, low_memory=False)
+print(df.shape)
+df.head()
+df.info()
+
+Check actual column names printed by df.columns. If TransactionDate or TransactionTime are separate columns, parse both. If CustomerDOB is object, convert to datetime:
+
+df['CustomerDOB'] = pd.to_datetime(df['CustomerDOB'], errors='coerce', dayfirst=True)
+
+
+---
+
+2. Aggregate per-customer (one row per customer)
+
+To make recommendations you usually build a customer profile. We'll aggregate transactional history into features:
+
+# Convert TransactionAmount to numeric (if not)
+df['TransactionAmount'] = pd.to_numeric(df['TransactionAmount'], errors='coerce')
+
+# Most recent snapshot time (for recency calculations)
+snapshot_date = df['TransactionDate'].max()
+
+# Aggregate features per customer
+agg_funcs = {
+    'TransactionAmount': ['sum', 'mean', 'std', 'count', 'min', 'max'],
+    'CustAccountBalance': 'max',           # latest or max balance
+    'has_creditcard': lambda x: x.mode()[0] if x.notna().any() else np.nan,
+    'has_active_loan': 'max',              # if any active loan (1/0 or Yes/No)
+    'loan_type': lambda x: x.dropna().iloc[-1] if len(x.dropna())>0 else 'None',  # latest loan_type
+    'credit_card_type': lambda x: x.mode()[0] if x.notna().any() else 'None',
+}
+
+cust = df.groupby('CustomerID').agg(agg_funcs)
+# flatten columns
+cust.columns = ['_'.join(col).strip() for col in cust.columns.values]
+
+# Example: name columns meaningfully
+cust = cust.rename(columns={
+    'TransactionAmount_sum':'tot_txn_amount',
+    'TransactionAmount_mean':'avg_txn_amount',
+    'TransactionAmount_std':'std_txn_amount',
+    'TransactionAmount_count':'txn_count',
+    'TransactionAmount_min':'min_txn_amount',
+    'TransactionAmount_max':'max_txn_amount',
+    'CustAccountBalance_max':'balance_snapshot',
+    'has_creditcard_<lambda>':'has_creditcard',
+    'has_active_loan_max':'has_active_loan',
+    'loan_type_<lambda>':'loan_type_latest',
+    'credit_card_type_<lambda>':'credit_card_type'
+})
+
+# Add demographics aggregated (take first non-null)
+dem_cols = ['CustomerDOB','CustGender','CustLocation']
+firsts = df.groupby('CustomerID')[dem_cols].first()
+cust = cust.merge(firsts, left_index=True, right_index=True, how='left')
+
+# Age
+cust['age'] = (snapshot_date - cust['CustomerDOB']).dt.days // 365
+
+
+---
+
+3. Basic cleaning & encode target
+
+We’ll treat loan_type_latest as the label to predict (so the model suggests what loan the customer currently has / should have). If you want to recommend new loans, you can filter customers with has_active_loan == 0 and train on customers who took a loan after some time (time-aware) — more on that later.
+
+cust['loan_type_latest'] = cust['loan_type_latest'].fillna('None')
+# If loan_type values like 'None', 'Personal', 'Home', 'Car', 'Education', 'PL' etc.
+cust['has_active_loan'] = cust['has_active_loan'].fillna(0).astype(int)
+
+Create a dataset for modeling (drop customers with missing critical info or impute):
+
+model_df = cust.copy()
+model_df = model_df.reset_index()  # keep CustomerID
+
+
+---
+
+4. Feature selection & preprocessing pipelines
+
+Select numeric and categorical features:
+
+numeric_features = ['tot_txn_amount','avg_txn_amount','std_txn_amount','txn_count','min_txn_amount','max_txn_amount','balance_snapshot','age']
+cat_features = ['CustGender','CustLocation','has_creditcard','credit_card_type']
+
+Build transformers:
+
+num_transformer = Pipeline([
+    ('imputer', SimpleImputer(strategy='median')),
+    ('scaler', StandardScaler())
+])
+
+cat_transformer = Pipeline([
+    ('imputer', SimpleImputer(strategy='constant', fill_value='Unknown')),
+    ('onehot', OneHotEncoder(handle_unknown='ignore', sparse=False))
+])
+
+preprocessor = ColumnTransformer([
+    ('num', num_transformer, numeric_features),
+    ('cat', cat_transformer, cat_features)
+])
+
+
+---
+
+5. Customer segmentation with KMeans
+
+Clustering helps produce segment-based recommendations.
+
+X_raw = model_df[numeric_features + cat_features]
+X = preprocessor.fit_transform(X_raw)
+
+# try k=4..8 and pick by inertia / silhouette; choose k=5 for example
+k = 5
+kmeans = KMeans(n_clusters=k, random_state=42)
+model_df['cluster'] = kmeans.fit_predict(X)
+
+# Inspect clusters
+print(model_df.groupby('cluster')['age','balance_snapshot','txn_count'].median())
+
+You can see which clusters have higher proportion of specific loan_type_latest.
+
+print(pd.crosstab(model_df['cluster'], model_df['loan_type_latest'], normalize='index'))
+
+
+---
+
+6. Train classifier to predict loan_type
+
+We’ll train RandomForest to predict loan_type_latest. If you want to recommend only customers without loans, you can train on customers who later took loans (requires time split). For initial POC we predict current loan type.
+
+y = model_df['loan_type_latest']
+X = model_df[numeric_features + cat_features]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.2, random_state=42)
+
+# Build full pipeline
+clf_pipeline = Pipeline([
+    ('preproc', preprocessor),
+    ('clf', RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1))
+])
+
+clf_pipeline.fit(X_train, y_train)
+
+# Evaluate
+y_pred = clf_pipeline.predict(X_test)
+print(classification_report(y_test, y_pred))
+print("Accuracy:", accuracy_score(y_test, y_pred))
+
+If the class "None" dominates, consider:
+
+training only on non-none labels (to predict which loan among customers who take a loan)
+
+or treat this as ranking: model outputs probabilities and we recommend top non-None.
+
+
+
+---
+
+7. Recommendation function
+
+Given a customer_id, produce predicted probabilities and cluster-based suggestions:
+
+def recommend_for(customer_id, top_n=3):
+    # find customer row
+    row = model_df[model_df['CustomerID'] == customer_id]
+    if row.empty:
+        return f"CustomerID {customer_id} not found"
+    # features
+    X_row = row[numeric_features + cat_features]
+    probs = clf_pipeline.predict_proba(X_row)[0]
+    classes = clf_pipeline.named_steps['clf'].classes_
+    prob_df = pd.DataFrame({'loan_type': classes, 'prob': probs})
+    prob_df = prob_df.sort_values('prob', ascending=False).reset_index(drop=True)
+    
+    # Filter to suggestions excluding 'None' if you want real products
+    prob_df_filtered = prob_df[prob_df['loan_type'] != 'None']
+    
+    # cluster-based frequent loan types
+    cluster_id = int(row['cluster'].iloc[0])
+    cluster_counts = model_df[model_df['cluster']==cluster_id]['loan_type_latest'].value_counts(normalize=True)
+    cluster_suggestions = cluster_counts[cluster_counts.index!='None'].head(top_n)
+    
+    return {
+        'customer_id': customer_id,
+        'predicted_probabilities': prob_df.head(top_n).to_dict(orient='records'),
+        'predicted_recommendations_non_none': prob_df_filtered.head(top_n).to_dict(orient='records'),
+        'cluster': cluster_id,
+        'cluster_top_products': cluster_suggestions.to_dict()
+    }
+
+# Example:
+print(recommend_for('C8337524'))
+
+The function returns:
+
+top predicted loan types with probabilities,
+
+top non-None predictions (real product suggestions),
+
+cluster top products (what customers similar to this one have).
+
+
+
+---
+
+8. Practical notes, improvements & time-aware recommendation
+
+If you want “for just any moment”: use snapshotting. When the user requests at time T, aggregate transactions up to T (filter TransactionDate <= T), recompute features for that snapshot, then call recommend_for on the snapshot features. This ensures recommendations respect the customer state at that time.
+
+To recommend new loans for customers without loans: train model to predict which loan users took next (requires sequential data / time split). Example process:
+
+For each customer, order transactions by date.
+
+Find the first transaction where has_active_loan becomes 1 (or loan_type becomes not None). Use features computed before that event to train model to predict the future loan_type. This is more realistic and avoids predicting None as majority.
+
+
+Collaborative Filtering / Hybrid: If you have user-product interaction history (who took which loans), a simple item-based collaborative filter or matrix factorization can recommend loans that similar customers took. Combine that with content-based features (age, balance) for better results.
+
+Handle imbalance: Loan classes may be imbalanced (most are 'None'). Use class weighting or sample positives.
+
+Explainability: use SHAP or feature importances to explain recommendations.
+
+Online serving: save preprocessor, kmeans, and classifier (pickle/joblib), for runtime inference.
+
+
+
+---
+
+9. Example: snapshot-based call (provide a date/time)
+
+def snapshot_customer_features(customer_id, as_of_date):
+    # filter transactional data up to this date
+    df_slice = df[(df['CustomerID'] == customer_id) & (df['TransactionDate'] <= pd.to_datetime(as_of_date))]
+    if df_slice.empty:
+        return None
+    # compute aggregates similar to before but only on df_slice
+    tot = df_slice['TransactionAmount'].sum()
+    avg = df_slice['TransactionAmount'].mean()
+    cnt = df_slice.shape[0]
+    max_bal = df_slice['CustAccountBalance'].max()
+    dob = df_slice['CustomerDOB'].iloc[0]
+    gender = df_slice['CustGender'].iloc[0]
+    loc = df_slice['CustLocation'].iloc[0]
+    has_cc = df_slice['has_creditcard'].dropna().iloc[-1] if df_slice['has_creditcard'].notna().any() else 'No'
+    cc_type = df_slice['credit_card_type'].dropna().iloc[-1] if df_slice['credit_card_type'].notna().any() else 'None'
+    age = (pd.to_datetime(as_of_date) - pd.to_datetime(dob)).days // 365 if not pd.isnull(dob) else np.nan
+    row = pd.DataFrame([{
+        'tot_txn_amount': tot, 'avg_txn_amount': avg, 'std_txn_amount': df_slice['TransactionAmount'].std(),
+        'txn_count': cnt, 'min_txn_amount': df_slice['TransactionAmount'].min(), 'max_txn_amount': df_slice['TransactionAmount'].max(),
+        'balance_snapshot': max_bal, 'age': age,
+        'CustGender': gender, 'CustLocation': loc, 'has_creditcard': has_cc, 'credit_card_type': cc_type
+    }])
+    return row
+
+snapshot = snapshot_customer_features('C8337524', '2016-08-01')
+if snapshot is not None:
+    # preprocess then predict
+    probs = clf_pipeline.predict_proba(snapshot)[0]
+    classes = clf_pipeline.named_steps['clf'].classes_
+    print(sorted(zip(classes, probs), key=lambda x: -x[1])[:5])
+
+
+---
+
+10. Wrap-up notes
+
+The approach above is a solid POC: create customer profiles, cluster, build a classifier, then produce top-N recommendations.
+
+If you want production-grade recommendations:
+
+build a time-split training set that predicts future loan uptake (not just current label)
+
+try XGBoost/LightGBM for better performance
+
+use cross validation, hyperparameter tuning
+
+use business rules (e.g., only recommend loans if balance, age, and credit card history pass thresholds)
+
+
+If you'd like, I can:
+
+adapt the code to treat loan_type as multi-label or to predict next loan (time-series approach),
+
+produce a notebook that snapshots at requested times,
+
+implement an item-based collaborative filter from the transactional history.
+
+
+
+
+---
+
+If you want, paste the actual column names from your CSV (list(df.columns) output) and tell me whether you want:
+
+recommendations for customers who don’t have a loan (i.e., propose a loan to sell), or
+
+predictions of the loan a customer already has (i.e., classification),
+and I’ll tailor the code to that use case and give a quick notebook-ready script.
