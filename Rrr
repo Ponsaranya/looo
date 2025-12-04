@@ -1,0 +1,96 @@
+Perfect — let me make this super clear and step-by-step, showing exactly where to include the float32 conversion and other fixes in your code so you can run it safely.
+
+
+---
+
+Step-by-step instructions
+
+1️⃣ After loading your CSV
+
+df = pd.read_csv("your_dataset.csv")
+
+Include here: Convert numeric columns to float32 to save memory
+
+import numpy as np
+
+# Select only numeric columns
+numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+df[numeric_cols] = df[numeric_cols].astype(np.float32)
+
+> ✅ This reduces memory usage for numeric data.
+
+
+
+
+---
+
+2️⃣ Convert Customer_DOB to numeric age
+
+Include this also right after loading the CSV (before defining numeric/categorical features)
+
+# Convert DOB to numeric age
+if 'Customer_DOB' in df.columns:
+    df['Customer_DOB'] = pd.to_datetime(df['Customer_DOB'], errors='coerce', dayfirst=True)
+    df['Customer_Age'] = (pd.Timestamp.today() - df['Customer_DOB']).dt.days // 365
+    numeric_features.append('Customer_Age')  # add to numeric features
+
+# Remove Customer_DOB from categorical features
+if 'Customer_DOB' in cat_features:
+    cat_features.remove('Customer_DOB')
+
+
+---
+
+3️⃣ Fix OneHotEncoder
+
+Include this in your preprocessing pipeline definition:
+
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+
+categorical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='most_frequent')),
+    ('onehot', OneHotEncoder(
+        sparse_output=True,     # ✅ use sparse to save memory
+        handle_unknown='ignore',
+        max_categories=50      # ✅ limit to top 50 categories
+    ))
+])
+
+
+---
+
+4️⃣ Optional: Sample dataset if too large
+
+Include this before fitting the classifier:
+
+if X.shape[0] > 50000:  # adjust based on your RAM
+    sample_idx = np.random.choice(X.index, 50000, replace=False)
+    X_train = X.loc[sample_idx]
+    y_train = y_encoded[sample_idx]
+else:
+    X_train = X
+    y_train = y_encoded
+
+clf_pipeline.fit(X_train, y_train)
+
+
+---
+
+✅ Summary of where to include each fix
+
+Fix	Where to include
+
+float32 numeric conversion	Right after loading the CSV
+DOB → numeric age	Right after loading the CSV (before defining numeric/categorical features)
+OneHotEncoder sparse + max_categories	In the categorical pipeline
+Optional sampling	Right before training the classifier
+
+
+
+---
+
+If you want, I can rewrite your full recommendation pipeline with all these fixes applied, ready to copy-paste, so it will not throw the 208 GiB memory error.
+
+Do you want me to do that?
