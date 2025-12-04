@@ -1,0 +1,157 @@
+# ===============================
+# 1️⃣ Import Libraries
+# ===============================
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.cluster import KMeans
+
+# ===============================
+# 2️⃣ Load Dataset
+# ===============================
+df = pd.read_csv("your_dataset.csv")
+
+# Clean column names (strip spaces)
+df.columns = df.columns.str.strip()
+
+# ===============================
+# 3️⃣ Handle Loan Type
+# ===============================
+# Ensure 'Loan_Type' exists
+if 'Loan_Type' not in df.columns:
+    df['Loan_Type'] = None
+
+# Clean Loan_Type column
+df['Loan_Type'] = df['Loan_Type'].astype(str).str.strip()
+
+# Replace invalid entries with None
+df.loc[df['Loan_Type'] == 'None', 'Loan_Type'] = None
+
+# Aggregate latest loan type per customer
+cust = df.groupby('Customer_ID').agg({
+    'Loan_Type': lambda x: x.dropna().iloc[-1] if x.dropna().any() else 'None'
+}).rename(columns={'Loan_Type':'Loan_Type_Latest'})
+
+# Merge back to main df
+df = df.merge(cust, on='Customer_ID', how='left')
+
+# ===============================
+# 4️⃣ Numeric Features
+# ===============================
+# Pick numeric features
+numeric_features = [
+    'Cust_Account_Balance',
+    'Transaction_amount_(INR)'
+]
+
+# Check if these columns exist
+numeric_features = [col for col in numeric_features if col in df.columns]
+
+# ===============================
+# 5️⃣ Categorical Features
+# ===============================
+cat_features = [
+    'Customer_DOB',
+    'Customer_Gender',
+    'Cust_Location',
+    'Has_credit_card',
+    'Credit_card_type',
+    'Has_active_loan',
+    'Savings_plan_type',
+    'Investment_type'
+]
+
+# Keep only existing columns
+cat_features = [col for col in cat_features if col in df.columns]
+
+# ===============================
+# 6️⃣ Preprocessing Pipeline
+# ===============================
+numeric_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='median')),
+    ('scaler', StandardScaler())
+])
+
+categorical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='most_frequent')),
+    ('onehot', OneHotEncoder(sparse_output=False, handle_unknown='ignore'))
+])
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numeric_transformer, numeric_features),
+        ('cat', categorical_transformer, cat_features)
+    ]
+)
+
+# ===============================
+# 7️⃣ Prepare ML Data
+# ===============================
+X = df[numeric_features + cat_features]
+y = df['Loan_Type_Latest']
+
+# Encode target
+le = LabelEncoder()
+y_encoded = le.fit_transform(y)
+
+# ===============================
+# 8️⃣ Train Classifier
+# ===============================
+clf_pipeline = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('classifier', RandomForestClassifier(n_estimators=100, random_state=42))
+])
+
+clf_pipeline.fit(X, y_encoded)
+
+# ===============================
+# 9️⃣ Customer Segmentation (KMeans)
+# ===============================
+X_cluster = preprocessor.fit_transform(X)
+kmeans = KMeans(n_clusters=5, random_state=42)
+df['cluster'] = kmeans.fit_predict(X_cluster)
+
+# ===============================
+# 🔟 Recommendation Function
+# ===============================
+def recommend(customer_id, top_n=3):
+    """
+    Given a customer ID, returns top_n recommended loan types
+    """
+    customer = df[df['Customer_ID'] == customer_id]
+    if customer.empty:
+        return f"Customer {customer_id} not found"
+    
+    # Predict probabilities
+    X_cust = customer[numeric_features + cat_features]
+    probs = clf_pipeline.predict_proba(X_cust)[0]
+    
+    # Map to loan type labels
+    loan_labels = le.inverse_transform(np.arange(len(probs)))
+    prob_df = pd.DataFrame({'loan_type': loan_labels, 'probability': probs})
+    prob_df = prob_df.sort_values(by='probability', ascending=False).head(top_n)
+    
+    # Add cluster info
+    cluster_id = int(customer['cluster'].values[0])
+    cluster_customers = df[df['cluster'] == cluster_id]
+    popular_loans = cluster_customers['Loan_Type_Latest'].value_counts().head(top_n)
+    
+    result = {
+        'customer_id': customer_id,
+        'predicted_probabilities': prob_df.to_dict(orient='records'),
+        'cluster_id': cluster_id,
+        'popular_loans_in_cluster': popular_loans.to_dict()
+    }
+    
+    return result
+
+# ===============================
+# 1️⃣1️⃣ Example Usage
+# ===============================
+customer_id = df['Customer_ID'].iloc[0]
+recommendation = recommend(customer_id)
+print(recommendation)
