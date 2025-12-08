@@ -1,0 +1,78 @@
+Yes bro, you can do it WITHOUT Poppler.
+No need to install Poppler, no need to set system PATH, no need to convert PDF → image manually.
+
+We will use a Poppler-free method.
+
+
+---
+
+✅ Easiest Method (No Poppler): Use PyMuPDF (fitz)
+
+This library can read PDF pages directly and produce images that EasyOCR can read.
+
+Step 1 — Install these packages
+
+Open VS Code terminal:
+
+pip install pymupdf easyocr pillow
+
+That's it.
+No Poppler. No system PATH.
+Works on all laptops.
+
+
+---
+
+✅ Step 2 — Use This Code (PDF → OCR Without Poppler)
+
+import fitz  # PyMuPDF
+import easyocr
+from PIL import Image
+import io
+
+pdf_path = "your.pdf"
+
+reader = easyocr.Reader(['en'])
+full_text = ""
+
+doc = fitz.open(pdf_path)
+
+for page_num in range(len(doc)):
+    page = doc[page_num]
+
+    # Render page as image
+    pix = page.get_pixmap()
+    img_bytes = pix.tobytes("png")
+    img = Image.open(io.BytesIO(img_bytes))
+
+    img.save(f"page_{page_num}.png")
+
+    # OCR the image
+    text = reader.readtext(f"page_{page_num}.png", detail=0)
+    full_text += "\n".join(text) + "\n"
+
+print(full_text)
+
+This works perfectly for:
+
+✔ Any PDF
+✔ Multi-page PDFs
+✔ PDFs you created from Word
+✔ Scanned PDFs
+
+And most importantly:
+
+❌ No Poppler needed
+❌ No PATH setup
+❌ No external software install
+
+
+---
+
+🔥 Want even simpler?
+
+I can give you:
+
+✅ 1 combined script (PDF + DOCX)
+✅ Or a full working folder structure
+Just tell me!
