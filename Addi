@@ -1,0 +1,38 @@
+def recommend(customer_ids, product_type='loan', top_n=3):
+    if isinstance(customer_ids, str):
+        customer_ids = [customer_ids]
+
+    product_map = {
+        'loan': (loan_clf, loan_le, 'Loan_type'),
+        'credit_card': (cc_clf, cc_le, 'credit_cardtype'),
+        'investment': (inv_clf, inv_le, 'investment_type'),
+        'savings': (savings_clf, savings_le, 'savings_plan_type')
+    }
+    
+    if product_type not in product_map:
+        return f"Product type must be one of {list(product_map.keys())}"
+
+    clf, le, col_name = product_map[product_type]
+    final_output = ""
+
+    for cust_id in customer_ids:
+        customer = df[df['CustomerID'] == cust_id]
+        if customer.empty:
+            final_output += f"Customer {cust_id} not found\n"
+            continue
+        
+        X_cust = customer[numeric_features + cat_features]
+        probs = clf.predict_proba(X_cust)[0]
+        types = le.inverse_transform(np.arange(len(probs)))
+        prob_df = pd.DataFrame({'type': types, 'probability': probs}) \
+                    .sort_values(by='probability', ascending=False).head(top_n)
+
+        final_output += f"\nCustomer ID: {cust_id}\n"
+        final_output += f"For your {product_type.replace('_', ' ').title()}, we are suggesting:\n"
+
+        count = 1
+        for _, row in prob_df.iterrows():
+            final_output += f"{count}. {row['type']}\n"
+            count += 1
+
+    return final_output.strip()
