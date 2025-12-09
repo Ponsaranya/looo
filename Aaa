@@ -1,0 +1,36 @@
+def recommend(customer_id, product_type):
+
+    # 1️⃣ Check if customer exists
+    if customer_id not in df['Customer_ID'].values:
+        return "Customer ID not found."
+
+    # 2️⃣ Get the row of this customer
+    user_row = df[df['Customer_ID'] == customer_id].iloc[0:1]
+
+    # 3️⃣ Predict cluster
+    user_cluster = kmeans.predict(preprocess_cluster.transform(user_row[cluster_features]))[0]
+
+    # 4️⃣ Popular products inside that cluster
+    cluster_data = df[df['cluster_id'] == user_cluster]
+    popular = cluster_data[product_columns].sum().sort_values(ascending=False)
+
+    # 5️⃣ Predict probabilities for all product types
+    probs = model.predict_proba(
+        preprocess_product.transform(user_row[product_features])
+    )[0]
+
+    prob_df = pd.DataFrame({
+        'type': label_encoder.classes_,
+        'prob': probs
+    })
+
+    prob_df = prob_df.sort_values(by='prob', ascending=False)
+
+    # 6️⃣ Build clean output
+    result = f"Customer ID: {customer_id}\n"
+    result += f"For your {product_type.replace('_',' ').title()}, we are suggesting:\n"
+
+    for i, row in enumerate(prob_df.itertuples(), start=1):
+        result += f"{i}. {row.type}\n"
+
+    return result.strip()
