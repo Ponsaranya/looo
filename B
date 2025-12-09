@@ -1,0 +1,36 @@
+def recommend(customer_ids, product_type='loan', top_n=3):
+    if isinstance(customer_ids, str):
+        customer_ids = [customer_ids]
+
+    product_map = {  
+        'loan': (loan_clf, loan_le, 'Loan_type'),  
+        'credit_card': (cc_clf, cc_le, 'credit_cardtype'),  
+        'investment': (inv_clf, inv_le, 'investment_type'),  
+        'savings': (savings_clf, savings_le, 'savings_plan_type')  
+    }  
+    
+    if product_type not in product_map:  
+        return f"Product type must be one of {list(product_map.keys())}"  
+
+    clf, le, col_name = product_map[product_type]  
+    output = {}
+
+    for cust_id in customer_ids:  
+        customer = df[df['CustomerID'] == cust_id]  
+        if customer.empty:  
+            output[cust_id] = f"CustomerID: {cust_id}; Not Found"
+            continue  
+        
+        X_cust = customer[numeric_features + cat_features]  
+        probs = clf.predict_proba(X_cust)[0]  
+        types = le.inverse_transform(np.arange(len(probs)))  
+        prob_df = pd.DataFrame({'type': types, 'probability': probs}).sort_values(by='probability', ascending=False).head(top_n)
+
+        # 🔹 ONLY OUTPUT FORMAT CHANGED
+        formatted_recs = f"CustomerID: {cust_id};\n{product_type.capitalize()} Recommendations:\n"
+        for idx, row in enumerate(prob_df.itertuples(), start=1):
+            formatted_recs += f"{idx}. {row.type}\n"
+
+        output[cust_id] = formatted_recs
+
+    return output
