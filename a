@@ -1,0 +1,141 @@
+Yes — this content will work perfectly for your PDF → embeddings → keyword extraction.
+Below is:
+
+1️⃣ A clean one-page content about Python Frameworks (you can paste this into Word and save as PDF)
+2️⃣ Your final code (updated) with only the small changes needed to load your PDF and run your embedding search.
+
+
+---
+
+✅ 1. One-page content about Python Frameworks (copy–paste into Word)
+
+Python Frameworks
+
+Python is one of the most popular programming languages because of its simplicity, readability, and strong ecosystem of libraries. To make development faster, Python offers many powerful frameworks that help developers build applications without writing everything from scratch. A framework provides pre-written code, reusable modules, and a structured way to develop applications.
+
+One of the most widely used Python frameworks is Django. It is a high-level web framework that follows the “batteries-included” approach, meaning it provides built-in features like authentication, database handling, security, and admin panels. Django is ideal for large and scalable applications such as e-commerce sites, social networks, and dashboards.
+
+Another popular framework is Flask, which is known for being lightweight and flexible. Unlike Django, Flask does not impose a strict project structure. Developers use it when they want more control over the application design. Flask is commonly used to build APIs, microservices, and small-to-medium web applications.
+
+For fast API development, the FastAPI framework is becoming very popular. It supports asynchronous programming, automatic documentation, and extremely high performance. Many companies use FastAPI to build modern backend systems and machine-learning model APIs.
+
+In the field of machine learning, TensorFlow and PyTorch are powerful frameworks. They help developers build neural networks, train models, and perform complex mathematical operations efficiently. These frameworks are widely used in AI applications such as image recognition, NLP, and recommendation systems.
+
+Another useful framework is Streamlit, which allows developers to quickly turn Python scripts into interactive web apps. It is often used for data science dashboards and machine-learning demos.
+
+Overall, Python frameworks make development faster, more organized, and more efficient. Depending on the project needs, developers can choose frameworks like Django, Flask, FastAPI, TensorFlow, PyTorch, or Streamlit to build powerful applications.
+
+
+---
+
+✅ 2. Your updated code (only the needed changes)
+
+This version simply loads your PDF (the one you create in Word), does embeddings, and lets you search keywords like “Python frameworks”.
+
+Install
+
+pip install pypdf sentence-transformers chromadb
+
+Code
+
+from pypdf import PdfReader
+from sentence_transformers import SentenceTransformer
+import chromadb
+
+# ---------------------------
+# 1. Load PDF Text
+# ---------------------------
+def extract_pdf_text(pdf_path):
+    reader = PdfReader(pdf_path)
+    text = ""
+    for page in reader.pages:
+        if page.extract_text():
+            text += page.extract_text() + "\n"
+    return text
+
+# ---------------------------
+# 2. Chunk Text
+# ---------------------------
+def chunk_text(text, chunk_size=300):
+    words = text.split()
+    chunks = []
+    for i in range(0, len(words), chunk_size):
+        chunk = " ".join(words[i:i+chunk_size])
+        chunks.append(chunk)
+    return chunks
+
+# ---------------------------
+# 3. Embedding Setup
+# ---------------------------
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
+# Use your Word-created PDF here
+pdf_text = extract_pdf_text("python_frameworks.pdf")
+chunks = chunk_text(pdf_text)
+
+# Encode chunks
+embeddings = model.encode(chunks).tolist()
+
+# ---------------------------
+# 4. Store in ChromaDB
+# ---------------------------
+client = chromadb.PersistentClient(path="pdf_store")
+collection = client.get_or_create_collection(name="my_pdf_collection")
+
+collection.add(
+    ids=[str(i) for i in range(len(chunks))],
+    documents=chunks,
+    embeddings=embeddings
+)
+
+# ---------------------------
+# 5. Query the PDF (search keywords)
+# ---------------------------
+query = "python frameworks"
+query_embedding = model.encode([query]).tolist()
+
+results = collection.query(
+    query_embeddings=query_embedding,
+    n_results=3
+)
+
+print("\n--- Search Result ---")
+print(results["documents"][0][0])
+
+
+---
+
+🔥 Will this content work for Python keyword extraction?
+
+✅ YES — you can extract:
+
+“Django”
+
+“Flask”
+
+“FastAPI”
+
+“TensorFlow”
+
+“PyTorch”
+
+“Streamlit”
+
+“frameworks”
+
+“web development”
+
+“machine learning”
+
+
+Your embeddings will detect all of this.
+
+
+---
+
+If you want, I can also:
+✔ Add Google search using the result
+✔ Add filtering (only extract frameworks)
+✔ Make it show only keywords instead of paragraphs
+
+Just tell me!
