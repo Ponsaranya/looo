@@ -1,0 +1,40 @@
+from PyPDF2 import PdfReader
+from sentence_transformers import SentenceTransformer
+import chromadb
+import re
+
+# --- Read PDF ---
+pdf = PdfReader("bird.pdf")
+text = " ".join([p.extract_text() or "" for p in pdf.pages])
+
+# --- Chunking: only words ---
+chunks = re.findall(r"[A-Za-z]+", text.lower())
+
+# --- Create Chroma client + collection ---
+client = chromadb.Client()
+col = client.get_or_create_collection("data")
+
+# --- Load embedding model ---
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
+# --- Embed chunks ---
+embs = model.encode(chunks).tolist()
+
+# --- Add to Chroma ---
+col.add(
+    ids=[str(i) for i in range(len(chunks))],
+    documents=chunks,
+    embeddings=embs
+)
+
+# --- Query ---
+query = "birds"
+results = col.query(
+    query_embeddings=model.encode([query]).tolist(),
+    n_results=10
+)
+
+# --- Print only the words (no sentence) ---
+bird_words = results["documents"][0]
+
+print(bird_words)
