@@ -1,0 +1,64 @@
+Title: Types of Animals and Their Importance
+
+Animals are living beings that share our planet. They are found in forests, oceans, deserts, and even in our homes. There are several types of animals, each playing a unique role in nature. For example, dogs are loyal companions to humans, while cats are playful and independent pets.
+
+In the wild, tigers are fierce predators that maintain the balance of their ecosystem. Elephants are gentle giants known for their intelligence and memory. Some animals like birds, frogs, and fish live in water or can fly, showcasing nature’s diversity.
+
+Other common animals include lions, monkeys, horses, and cows, each contributing to human life in various ways. Animals help in agriculture, transportation, and even provide companionship and entertainment. Understanding animals is crucial for conserving biodiversity and protecting our environment.
+
+from pypdf import PdfReader
+from sentence_transformers import SentenceTransformer
+import chromadb
+
+# 1️⃣ Extract text from PDF
+def extract_pdf_text(pdf_path):
+    reader = PdfReader(pdf_path)
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text() + "\n"
+    return text
+
+# 2️⃣ Split text into chunks
+def chunk_text(text, chunk_size=300):
+    words = text.split()
+    chunks = []
+    for i in range(0, len(words), chunk_size):
+        chunk = " ".join(words[i:i+chunk_size])
+        chunks.append(chunk)
+    return chunks
+
+# 3️⃣ Load embedding model
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
+# 4️⃣ Read your animals PDF
+pdf_text = extract_pdf_text("animals.pdf")  # <-- your PDF file
+chunks = chunk_text(pdf_text)
+
+# 5️⃣ Encode chunks
+embeddings = model.encode(chunks).tolist()
+
+# 6️⃣ Create ChromaDB client & collection
+chroma_client = chromadb.PersistentClient(path="animals_store")
+collection = chroma_client.get_or_create_collection(name="animals_doc")
+
+# 7️⃣ Add chunks to collection
+collection.add(
+    ids=[str(i) for i in range(len(chunks))],
+    documents=chunks,
+    embeddings=embeddings
+)
+
+# 8️⃣ Query for animals
+query = "animals"
+query_embedding = model.encode([query]).tolist()
+
+results = collection.query(
+    query_embeddings=query_embedding,
+    n_results=10  # number of top chunks to fetch
+)
+
+# 9️⃣ Print only detected animals
+detected_animals = results['documents'][0]
+print("Detected Animals:")
+for animal in detected_animals:
+    print(animal)
