@@ -1,0 +1,20 @@
+from sentence_transformers import SentenceTransformer
+from PyPDF2 import PdfReader
+import chromadb
+
+pdf = PdfReader("input.pdf")
+text = " ".join([p.extract_text() or "" for p in pdf.pages])
+
+chunks = [c.strip() for c in text.split(".") if len(c.strip()) > 20]
+
+model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+client = chromadb.Client()
+col = client.get_or_create_collection("data")
+
+embs = model.encode(chunks).tolist()
+col.add(ids=[str(i) for i in range(len(chunks))], documents=chunks, embeddings=embs)
+
+query = "birds"
+results = col.query(query_embeddings=model.encode([query]).tolist(), n_results=2)
+
+print(results["documents"][0])
