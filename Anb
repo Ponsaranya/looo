@@ -1,0 +1,83 @@
+To connect your app.py with style.css, you only need ONE simple step in app.py:
+
+
+---
+
+✅ STEP 1 — Load your CSS file inside app.py
+
+At the TOP of your app.py (after imports), add this:
+
+# Load external CSS
+def load_css(file_name):
+    with open(file_name, "r") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+load_css("static/style.css")
+
+✔ This tells Streamlit to read your stylesheet
+✔ And apply it to the whole UI
+✔ Now your .chat-message, .user-msg, .bot-msg, .title, etc. will work
+
+
+---
+
+📌 Folder Structure (VERY IMPORTANT)
+
+Your project should look like this:
+
+project/
+│ app.py
+│ chat_history.db
+│ models/
+│ utils/
+│ data/
+│
+└── static/
+       ├── style.css
+       ├── user.png
+       └── bot.jfif
+
+✔ static/style.css
+✔ static/user.png
+✔ static/bot.jfif
+
+
+---
+
+📌 STEP 2 — Use CSS classes in app.py
+
+Where you display chat, use this:
+
+st.markdown(
+    f"""
+    <div class='chat-message user-msg'>
+        <img src='static/user.png' width='25' style='vertical-align:middle;margin-right:6px;'>
+        <strong>You:</strong> {message}
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+and for bot:
+
+st.markdown(
+    f"""
+    <div class='chat-message bot-msg'>
+        <img src='static/bot.jfif' width='25' style='vertical-align:middle;margin-right:6px;'>
+        <strong>Bot:</strong> {message}
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+---
+
+🎉 That’s it! Your app and CSS are now connected.
+
+Your Streamlit UI will now look styled exactly from style.css.
+
+If you want, I can also:
+✅ Combine everything into a final clean app.py
+✅ Create a better style.css theme
+Just tell me!
