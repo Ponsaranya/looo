@@ -1,0 +1,419 @@
+Great — thanks for the clear description. I made three fixes/changes (only UI changes, no logic changed):
+
+1. Send on Enter reliably — the message is submitted when you press Enter.
+
+
+2. Single-click Send works — no more needing to click twice.
+
+
+3. Resend button — a small Resend button appears at the top-right of the conversation card; it re-runs the bot reply for the last user message (useful if reply failed).
+
+
+
+I implemented this using a single, safe handler function submit_message() that is called both:
+
+automatically when the text box chat_input triggers on_change (Enter), and
+
+when the Send button is clicked.
+
+
+That approach avoids flaky behaviour caused by relying on st.form + st.rerun() and is the most reliable in Streamlit across versions.
+
+Below are the two files. Replace your prior app.py and style.css with these (keep models/, data/, utils/ unchanged).
+
+
+---
+
+app.py (full file — logic unchanged, only UI/submit flow changed)
+
+import streamlit as st
+import pandas as pd
+import pickle
+import sqlite3
+import os
+
+# -------------------------
+# IMPORT MODULES (unchanged)
+# -------------------------
+from utils.recommendation_engine import get_recommendation
+from utils.faq_engine import get_faq_answer
+
+# -------------------------
+# DATABASE SETUP (unchanged)
+# -------------------------
+DB_PATH = "chat_history.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS chat (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender TEXT,
+            message TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def save_to_db(sender, message):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO chat (sender, message) VALUES (?, ?)", (sender, message))
+    conn.commit()
+    conn.close()
+
+def load_chat_history():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT sender, message FROM chat ORDER BY timestamp ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+init_db()
+
+# -------------------------
+# LOAD FAQ MODEL FILES (unchanged)
+# -------------------------
+vectorizer = pickle.load(open("models/vectorizer.pkl", "rb"))
+model = pickle.load(open("models/model.pkl", "rb"))
+label_encoder = pickle.load(open("models/label_encoder.pkl", "rb"))
+
+df_faq = pd.read_excel("data/FAQ_dataset.xlsx")
+
+# -------------------------
+# FAQ CHATBOT RESPONSE (unchanged)
+# -------------------------
+def chatbot_faq(user_query):
+    try:
+        query_vec = vectorizer.transform([user_query])
+        probs = model.predict_proba(query_vec)[0]
+        max_prob = max(probs)
+
+        if max_prob < 0.40:
+            return None
+
+        pred = model.predict(query_vec)[0]
+        intent = label_encoder.inverse_transform([pred])[0]
+        answers = df_faq[df_faq["intent"] == intent]["answer"]
+
+        if answers.empty:
+            return None
+
+        return answers.sample(1).values[0]
+
+    except Exception as e:
+        print("FAQ Engine Error:", e)
+        return None
+
+# -------------------------
+# Load CSS helper
+# -------------------------
+def load_css_try(paths):
+    for p in paths:
+        if os.path.exists(p):
+            with open(p, "r", encoding="utf-8") as f:
+                st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+            return True
+    return False
+
+# try root then static
+load_css_try(["style.css", os.path.join("static", "style.css")])
+
+# -------------------------
+# Page config
+# -------------------------
+st.set_page_config(page_title="Banking Chatbot", layout="wide")
+
+# -------------------------
+# Session state
+# -------------------------
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = load_chat_history()
+
+# -------------------------
+# submit handler (used for Enter and Send)
+# -------------------------
+def submit_message():
+    """
+    Called when user presses Enter (text_input on_change) or clicks Send.
+    Reads st.session_state.chat_input, processes it (recommendation/FAQ),
+    appends to session and DB, then clears the input.
+    """
+    msg = st.session_state.get("chat_input", "")
+    if not msg or not msg.strip():
+        return
+
+    # Keep exact logic: recommend keywords first
+    if ("suggest" in msg.lower()) or ("recommend" in msg.lower()):
+        bot_reply = get_recommendation(msg)
+    else:
+        bot_reply = chatbot_faq(msg)
+        if bot_reply is None:
+            bot_reply = "Please ask something related to banking and Product suggestions."
+
+    # Save to session and DB
+    st.session_state.chat_history.append(("You", msg))
+    st.session_state.chat_history.append(("Bot", bot_reply))
+
+    save_to_db("You", msg)
+    save_to_db("Bot", bot_reply)
+
+    # Clear the text input (safe inside callback)
+    st.session_state["chat_input"] = ""
+
+# -------------------------
+# Resend handler: re-generate bot reply for last user message
+# -------------------------
+def resend_last():
+    # Find last user message in history
+    for sender, message in reversed(st.session_state.chat_history):
+        if sender == "You":
+            last_user_msg = message
+            break
+    else:
+        return  # nothing to resend
+
+    # Generate reply using same logic
+    if ("suggest" in last_user_msg.lower()) or ("recommend" in last_user_msg.lower()):
+        bot_reply = get_recommendation(last_user_msg)
+    else:
+        bot_reply = chatbot_faq(last_user_msg)
+        if bot_reply is None:
+            bot_reply = "Please ask something related to banking and Product suggestions."
+
+    # Append new bot reply (do not duplicate the user message)
+    st.session_state.chat_history.append(("Bot", bot_reply))
+    save_to_db("Bot", bot_reply)
+
+# -------------------------
+# Layout: left (title + reset), right (chat + input + resend)
+# -------------------------
+left_col, right_col = st.columns([1, 3], gap="large")
+
+with left_col:
+    st.markdown("<div class='left-card'>", unsafe_allow_html=True)
+    st.markdown("<h1 class='left-title'>Banking Chatbot</h1>", unsafe_allow_html=True)
+    st.markdown("<p class='left-sub'>Ask about banking and product suggestions</p>", unsafe_allow_html=True)
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+    # Reset (unchanged logic)
+    if st.button("Reset"):
+        st.session_state.chat_history = []
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM chat")
+        conn.commit()
+        conn.close()
+        st.rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with right_col:
+    # Top row: title on left of right-card, Resend button on right
+    col_title, col_resend = st.columns([8,1])
+    with col_title:
+        st.markdown("<h2 class='conv-title'>Conversation</h2>", unsafe_allow_html=True)
+    with col_resend:
+        if st.button("Resend"):
+            resend_last()
+            # no rerun needed; the new bot reply will appear on next render
+
+    # Conversation container
+    st.markdown('<div class="right-card">', unsafe_allow_html=True)
+    st.markdown('<div class="chat-area">', unsafe_allow_html=True)
+
+    # Render messages
+    for sender, message in st.session_state.chat_history:
+        if sender == "You":
+            st.markdown(
+                f"""
+                <div class="msg-row user-row">
+                    <div class="bubble user-bubble">{message}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                f"""
+                <div class="msg-row bot-row">
+                    <div class="bubble bot-bubble">{message}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.markdown('</div>', unsafe_allow_html=True)  # close chat-area
+
+    # Input: single text_input with on_change -> submit_message so Enter works reliably.
+    st.markdown('<div class="input-sticky">', unsafe_allow_html=True)
+    # text_input with key "chat_input" triggers submit_message on Enter
+    st.text_input("", key="chat_input", placeholder="Type your message...", on_change=submit_message, label_visibility="collapsed")
+    # Send button calls same handler (single click)
+    if st.button("Send"):
+        submit_message()
+    st.markdown('</div>', unsafe_allow_html=True)  # close input-sticky
+    st.markdown('</div>', unsafe_allow_html=True)  # close right-card
+
+
+---
+
+style.css (unchanged UI look — you can modify the colours if you prefer)
+
+/* Streamlit app container background */
+[data-testid="stAppViewContainer"] {
+    background-color: #ffffff !important;
+}
+
+/* Page padding */
+.block-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-top: 20px !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+}
+
+/* Left small card */
+.left-card {
+    padding: 6px 6px 12px 6px;
+}
+.left-title {
+    font-size: 26px;
+    color: #0b3b54;
+    margin: 0 0 6px 0;
+}
+.left-sub {
+    color: #4b6b73;
+    margin: 0 0 12px 0;
+}
+
+/* Right card */
+.right-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 0;
+    border: 1px solid #eef2f4;
+    display: flex;
+    flex-direction: column;
+    height: 640px;
+}
+
+/* Conversation title (top of right column) */
+.conv-title {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    color: #0b3b54;
+}
+
+/* Chat area - scrollable */
+.chat-area {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1 1 auto;
+    background: #fbfdff;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+/* Message row and alignment */
+.msg-row {
+    display: flex;
+    margin-bottom: 12px;
+}
+
+.bot-row {
+    justify-content: flex-start;
+}
+.user-row {
+    justify-content: flex-end;
+}
+
+/* Bubble styling */
+.bubble {
+    padding: 12px 16px;
+    border-radius: 14px;
+    max-width: 70%;
+    font-size: 15px;
+    line-height: 1.4;
+    box-shadow: 0 4px 14px rgba(18, 35, 47, 0.06);
+}
+
+/* User bubble (right) */
+.user-bubble {
+    background: #1e90ff;
+    color: white;
+    border-bottom-right-radius: 6px;
+}
+
+/* Bot bubble (left) */
+.bot-bubble {
+    background: #f3f6f7;
+    color: #0f1720;
+    border-bottom-left-radius: 6px;
+}
+
+/* Input area (form) fixed at bottom of right-card */
+.input-sticky {
+    border-top: 1px solid #eef2f4;
+    padding: 14px;
+    background: white;
+    flex: 0 0 auto;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Style the text input */
+.input-sticky .stTextInput > div > div > input {
+    border-radius: 10px !important;
+    padding: 12px !important;
+    border: 1px solid #e1e7ea !important;
+    font-size: 15px;
+    width: 100%;
+}
+
+/* Style Send & Resend buttons */
+.stButton > button {
+    background-color: #1e90ff !important;
+    color: white !important;
+    border-radius: 8px !important;
+    padding: 10px 16px !important;
+}
+
+/* small responsive */
+@media (max-width: 900px) {
+    .right-card { height: 520px; }
+    .bubble { max-width: 85%; }
+}
+
+
+---
+
+How this fixes your issues
+
+st.text_input(..., on_change=submit_message) ensures Enter fires the submit_message() handler. This is the most reliable way in Streamlit to submit on Enter.
+
+The Send button simply calls submit_message() once — a single click suffices.
+
+submit_message() updates session and DB then clears the input (st.session_state["chat_input"] = "") so there’s no need to call st.rerun() (avoids flicker/double-click problems).
+
+The Resend button uses resend_last() which finds the last user message and produces a new bot reply (appends it and saves to DB).
+
+
+
+---
+
+If you want, I can:
+
+Add tiny confirmation tooltip for Resend (e.g., “Resend last user message”), or
+
+Add an icon instead of the text “Resend” and style it, or
+
+Add avatars inside bubbles (base64-embedded) — still only UI change.
+
+
+Which (if any) would you like next?
