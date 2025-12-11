@@ -1,0 +1,385 @@
+Great — I understand exactly. I removed the Resend button and the extra empty helper box, kept your app logic unchanged, ensured Enter and single-click Send both submit reliably, and added the UI text/hints you asked for. The chat area on the right uses a light-blue background. The left column keeps the Banking Chatbot title on the top-left, the short subtitle (“Ask about banking and product suggestions”), and a small hint just above the Reset button.
+
+Below are two files. Replace your current app.py and style.css with these (keep models/, data/, utils/ etc. unchanged). I changed only UI and submission handling — your DB, model loading, FAQ/recommendation logic, keyword checks and DB saves are exactly the same.
+
+
+---
+
+app.py
+
+import streamlit as st
+import pandas as pd
+import pickle
+import sqlite3
+import os
+
+# -------------------------
+# IMPORT MODULES (unchanged)
+# -------------------------
+from utils.recommendation_engine import get_recommendation
+from utils.faq_engine import get_faq_answer
+
+# -------------------------
+# DATABASE SETUP (unchanged)
+# -------------------------
+DB_PATH = "chat_history.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS chat (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender TEXT,
+            message TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def save_to_db(sender, message):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO chat (sender, message) VALUES (?, ?)", (sender, message))
+    conn.commit()
+    conn.close()
+
+def load_chat_history():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT sender, message FROM chat ORDER BY timestamp ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+init_db()
+
+# -------------------------
+# LOAD FAQ MODEL FILES (unchanged)
+# -------------------------
+vectorizer = pickle.load(open("models/vectorizer.pkl", "rb"))
+model = pickle.load(open("models/model.pkl", "rb"))
+label_encoder = pickle.load(open("models/label_encoder.pkl", "rb"))
+
+df_faq = pd.read_excel("data/FAQ_dataset.xlsx")
+
+# -------------------------
+# FAQ CHATBOT RESPONSE (unchanged)
+# -------------------------
+def chatbot_faq(user_query):
+    try:
+        query_vec = vectorizer.transform([user_query])
+        probs = model.predict_proba(query_vec)[0]
+        max_prob = max(probs)
+
+        if max_prob < 0.40:
+            return None
+
+        pred = model.predict(query_vec)[0]
+        intent = label_encoder.inverse_transform([pred])[0]
+        answers = df_faq[df_faq["intent"] == intent]["answer"]
+
+        if answers.empty:
+            return None
+
+        return answers.sample(1).values[0]
+
+    except Exception as e:
+        print("FAQ Engine Error:", e)
+        return None
+
+# -------------------------
+# Load CSS helper (tries root then static)
+# -------------------------
+def load_css_try(paths):
+    for p in paths:
+        if os.path.exists(p):
+            with open(p, "r", encoding="utf-8") as f:
+                st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+            return True
+    return False
+
+load_css_try(["style.css", os.path.join("static", "style.css")])
+
+# -------------------------
+# Page config
+# -------------------------
+st.set_page_config(page_title="Banking Chatbot", layout="wide")
+
+# -------------------------
+# Session: load history once
+# -------------------------
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = load_chat_history()
+
+# -------------------------
+# submit handler (used for Enter and Send)
+# -------------------------
+def submit_message():
+    """
+    Called when user presses Enter (text_input on_change) or clicks Send.
+    Reads st.session_state.chat_input, processes it (recommendation/FAQ),
+    appends to session and DB, then clears the input.
+    """
+    msg = st.session_state.get("chat_input", "")
+    if not msg or not msg.strip():
+        return
+
+    # Keep exact logic: recommend keywords first
+    if ("suggest" in msg.lower()) or ("recommend" in msg.lower()):
+        bot_reply = get_recommendation(msg)
+    else:
+        bot_reply = chatbot_faq(msg)
+        if bot_reply is None:
+            bot_reply = "Please ask something related to banking and Product suggestions."
+
+    # Save to session and DB
+    st.session_state.chat_history.append(("You", msg))
+    st.session_state.chat_history.append(("Bot", bot_reply))
+
+    save_to_db("You", msg)
+    save_to_db("Bot", bot_reply)
+
+    # Clear the text input (safe inside callback)
+    st.session_state["chat_input"] = ""
+
+# -------------------------
+# Layout: left (title + reset + hint), right (chat + input)
+# -------------------------
+left_col, right_col = st.columns([1, 3], gap="large")
+
+with left_col:
+    st.markdown("<div class='left-card'>", unsafe_allow_html=True)
+    st.markdown("<h1 class='left-title'>Banking Chatbot</h1>", unsafe_allow_html=True)
+    st.markdown("<p class='left-sub'>Ask about banking and product suggestions</p>", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+    # Small hint before reset
+    st.markdown("<div class='hint'>If you want to reset the conversation, click the button below. This will clear the chat history.</div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+    if st.button("Reset"):
+        st.session_state.chat_history = []
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM chat")
+        conn.commit()
+        conn.close()
+        st.rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with right_col:
+    st.markdown('<div class="right-card">', unsafe_allow_html=True)
+
+    # Conversation title and subtitle inline
+    st.markdown("<div class='conv-header'><h2 class='conv-title'>Conversation</h2><div class='conv-sub'>Ask about banking and product suggestions</div></div>", unsafe_allow_html=True)
+
+    # Chat window area with light-blue background
+    st.markdown('<div class="chat-area">', unsafe_allow_html=True)
+
+    # Render messages (bot left, user right)
+    for sender, message in st.session_state.chat_history:
+        if sender == "You":
+            st.markdown(
+                f"""
+                <div class="msg-row user-row">
+                    <div class="bubble user-bubble">{message}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                f"""
+                <div class="msg-row bot-row">
+                    <div class="bubble bot-bubble">{message}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.markdown('</div>', unsafe_allow_html=True)  # close chat-area
+
+    # Input area: single text_input with on_change -> submit_message so Enter works reliably.
+    st.markdown('<div class="input-sticky">', unsafe_allow_html=True)
+    st.text_input("", key="chat_input", placeholder="Type your message...", on_change=submit_message, label_visibility="collapsed")
+    if st.button("Send"):
+        submit_message()
+    st.markdown('</div>', unsafe_allow_html=True)  # close input-sticky
+
+    st.markdown('</div>', unsafe_allow_html=True)  # close right-card
+
+
+---
+
+style.css
+
+/* App container background */
+[data-testid="stAppViewContainer"] {
+    background-color: #eef8ff !important; /* very light page background */
+}
+
+/* Page padding */
+.block-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-top: 18px !important;
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+}
+
+/* Left small card */
+.left-card {
+    padding: 6px 8px 12px 8px;
+}
+.left-title {
+    font-size: 28px;
+    color: #0b3b54;
+    margin: 0 0 6px 0;
+}
+.left-sub {
+    color: #4b6b73;
+    margin: 0 0 12px 0;
+}
+.hint {
+    font-size: 13px;
+    color: #536b73;
+    margin-bottom: 8px;
+}
+
+/* Right card: whole conversation area */
+.right-card {
+    background: transparent;
+    border-radius: 12px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    height: 640px;
+}
+
+/* Conversation header: title + small subtitle inside right column */
+.conv-header {
+    padding: 8px 24px 0 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.conv-title {
+    margin: 0;
+    font-size: 20px;
+    color: #0b3b54;
+}
+.conv-sub {
+    color: #4b6b73;
+    font-size: 13px;
+    margin-top: 6px;
+}
+
+/* Chat area with light blue background (where bubbles appear) */
+.chat-area {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1 1 auto;
+    background: linear-gradient(180deg, #e6f3ff 0%, #e6f8ff 100%); /* light-blue card */
+    border-radius: 10px;
+    margin: 12px 16px 0 16px;
+}
+
+/* Message rows and alignment */
+.msg-row {
+    display: flex;
+    margin-bottom: 12px;
+}
+.bot-row {
+    justify-content: flex-start;
+}
+.user-row {
+    justify-content: flex-end;
+}
+
+/* Bubble base */
+.bubble {
+    padding: 12px 16px;
+    border-radius: 14px;
+    max-width: 70%;
+    font-size: 15px;
+    line-height: 1.4;
+    box-shadow: 0 4px 14px rgba(18, 35, 47, 0.06);
+}
+
+/* Bot bubble (left) - light */
+.bot-bubble {
+    background: #ffffff;
+    color: #0f1720;
+    border: 1px solid #e7eef3;
+    border-bottom-left-radius: 6px;
+}
+
+/* User bubble (right) - blue */
+.user-bubble {
+    background: #1e90ff;
+    color: white;
+    border-bottom-right-radius: 6px;
+}
+
+/* Input area fixed at bottom */
+.input-sticky {
+    border-top: 1px solid #eef2f4;
+    padding: 14px 16px;
+    background: transparent;
+    flex: 0 0 auto;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin: 0 16px 16px 16px;
+}
+
+/* Text input appearance */
+.input-sticky .stTextInput > div > div > input {
+    border-radius: 10px !important;
+    padding: 12px !important;
+    border: 1px solid #cfe6ff !important;
+    font-size: 15px;
+    width: 100%;
+    background: #ffffff !important;
+}
+
+/* Send button */
+.input-sticky .stButton > button {
+    background-color: #1e90ff !important;
+    color: white !important;
+    border-radius: 8px !important;
+    padding: 10px 16px !important;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .right-card { height: 520px; }
+    .bubble { max-width: 85%; }
+}
+
+
+---
+
+Quick notes & checklist before running
+
+1. Put app.py and style.css in the same folder (project root). If you prefer style.css in static/, the loader tries static/style.css too.
+
+
+2. Keep models/, data/, utils/ untouched.
+
+
+3. Run with: streamlit run app.py
+
+
+4. Confirm: — Left shows Banking Chatbot + subtitle + small hint + Reset. — Right shows Conversation header and the light-blue chat area. — Input is at the bottom of the right column; Enter and single-click Send both submit. — Resend and the extra helper input on the left have been removed.
+
+
+
+
+---
+
+If anything needs a tiny visual tweak (e.g., darker/lighter blue, font size, spacing), tell me which exact piece and I’ll update only the style.css lines — no logic changes.
