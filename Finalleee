@@ -1,0 +1,398 @@
+Nice — I recreated your app exactly the way you asked:
+
+I did not change any logic (DB, models, label encoder, FAQ, recommendation keywords, saving to DB).
+
+I only changed the UI layout and styling so the conversation appears on the right as chat bubbles (short and clean like your screenshot) and controls including Reset stay on the left.
+
+The code loads an external style.css (you can put it next to app.py or in static/style.css).
+
+The app safely refreshes the UI after Reset / Send (uses a small safe_rerun() helper so it works across Streamlit versions).
+
+
+Copy these two files into your project. Put style.css next to app.py (or inside static/ — the loader will try both). Keep your existing models/ and data/ folders intact.
+
+
+---
+
+app.py
+
+Paste / replace your current app.py with this. (Logic unchanged; UI only.)
+
+import streamlit as st
+import pandas as pd
+import pickle
+import sqlite3
+import os
+import time
+
+# -------------------------
+# IMPORT MODULES (unchanged)
+# -------------------------
+from utils.recommendation_engine import get_recommendation
+from utils.faq_engine import get_faq_answer
+
+# -------------------------
+# DATABASE SETUP (unchanged)
+# -------------------------
+DB_PATH = "chat_history.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS chat (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender TEXT,
+            message TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def save_to_db(sender, message):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO chat (sender, message) VALUES (?, ?)", (sender, message))
+    conn.commit()
+    conn.close()
+
+def load_chat_history():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT sender, message FROM chat ORDER BY timestamp ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+init_db()
+
+# -------------------------
+# LOAD FAQ MODEL FILES (unchanged)
+# -------------------------
+vectorizer = pickle.load(open("models/vectorizer.pkl", "rb"))
+model = pickle.load(open("models/model.pkl", "rb"))
+label_encoder = pickle.load(open("models/label_encoder.pkl", "rb"))
+df_faq = pd.read_excel("data/FAQ_dataset.xlsx")
+
+# -------------------------
+# FAQ CHATBOT RESPONSE (unchanged)
+# -------------------------
+def chatbot_faq(user_query):
+    try:
+        query_vec = vectorizer.transform([user_query])
+        probs = model.predict_proba(query_vec)[0]
+        max_prob = max(probs)
+
+        if max_prob < 0.40:
+            return None
+
+        pred = model.predict(query_vec)[0]
+        intent = label_encoder.inverse_transform([pred])[0]
+        answers = df_faq[df_faq["intent"] == intent]["answer"]
+
+        if answers.empty:
+            return None
+
+        return answers.sample(1).values[0]
+
+    except Exception as e:
+        print("FAQ Engine Error:", e)
+        return None
+
+# -------------------------
+# SAFE RERUN helper (works if experimental_rerun missing)
+# -------------------------
+def safe_rerun():
+    if hasattr(st, "experimental_rerun"):
+        try:
+            st.experimental_rerun()
+            return
+        except Exception:
+            pass
+    # fallback: change query params to trigger refresh
+    try:
+        st.experimental_set_query_params(_ts=str(time.time()))
+    except Exception:
+        # final fallback: toggle session key
+        st.session_state["_force_rerun"] = not st.session_state.get("_force_rerun", False)
+
+# -------------------------
+# LOAD EXTERNAL CSS (style.css)
+# -------------------------
+def load_css_try(paths):
+    for p in paths:
+        if os.path.exists(p):
+            with open(p, "r", encoding="utf-8") as f:
+                st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+            return True
+    return False
+
+# try root and static folder
+load_css_try(["style.css", os.path.join("static", "style.css")])
+
+# -------------------------
+# PAGE CONFIG
+# -------------------------
+st.set_page_config(page_title="Banking Chatbot", layout="wide")
+
+# -------------------------
+# UI LAYOUT (left controls, right conversation)
+# -------------------------
+left_col, right_col = st.columns([1, 3])
+
+with left_col:
+    st.markdown("<div class='sidebar-card'>", unsafe_allow_html=True)
+    st.markdown("<h1 class='app-title'>Banking Chatbot</h1>", unsafe_allow_html=True)
+    st.markdown("<div class='app-sub'>Ask about banking and product suggestions</div>", unsafe_allow_html=True)
+
+    st.markdown("<div class='spacer'></div>", unsafe_allow_html=True)
+
+    # Message input shown on left only as label (real input on right)
+    st.markdown("<div class='label'>Send a message</div>", unsafe_allow_html=True)
+    # show small helper text input (not used to send) to match screenshot look (optional)
+    st.text_input("Type your message...", key="left_helper", placeholder="Type your message...")
+
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+    # Counters / Legend (You / Bot)
+    st.markdown("<div class='label'>You</div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+
+    st.markdown("<div class='label'>Bot</div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+    if st.button("Reset"):
+        # clear session and DB (same behavior)
+        st.session_state.chat_history = []
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM chat")
+        conn.commit()
+        conn.close()
+        safe_rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with right_col:
+    # Conversation card
+    st.markdown("<div class='conv-card'>", unsafe_allow_html=True)
+
+    # Chat display area
+    st.markdown("<div class='chat-box'>", unsafe_allow_html=True)
+
+    # load chat history into session if empty (unchanged)
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = load_chat_history()
+
+    # Render messages: bot on left, user on right (short bubbles)
+    for sender, message in st.session_state.chat_history:
+        if sender == "You":
+            st.markdown(
+                f"""
+                <div class="msg-row user-row">
+                    <div class="bubble user-bubble">{message}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                f"""
+                <div class="msg-row bot-row">
+                    <div class="bubble bot-bubble">{message}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("</div>", unsafe_allow_html=True)  # close chat-box
+
+    # Input area at bottom of right column
+    st.markdown("<div class='input-area'>", unsafe_allow_html=True)
+    message = st.text_input("", key="chat_input", placeholder="Type your message...", label_visibility="collapsed")
+    send = st.button("Send", key="send_btn")
+    st.markdown("</div>", unsafe_allow_html=True)  # close input-area
+
+    # PROCESS send (logic unchanged)
+    if send:
+        if message and message.strip() != "":
+            if ("suggest" in message.lower()) or ("recommend" in message.lower()):
+                bot_reply = get_recommendation(message)
+            else:
+                bot_reply = chatbot_faq(message)
+                if bot_reply is None:
+                    bot_reply = "Please ask something related to banking and Product suggestions."
+
+            st.session_state.chat_history.append(("You", message))
+            st.session_state.chat_history.append(("Bot", bot_reply))
+
+            save_to_db("You", message)
+            save_to_db("Bot", bot_reply)
+
+            # clear input (do not manipulate session_state key directly - just rerun)
+            safe_rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)  # close conv-card
+
+
+---
+
+style.css
+
+Save this file next to app.py (or in static/style.css). This CSS creates a left sidebar-like card and a right conversation area with short bubbles like your example.
+
+/* ---------- Page background (Streamlit app container) ---------- */
+[data-testid="stAppViewContainer"] {
+    background-color: #ffffff !important;
+}
+
+/* block container spacing */
+.block-container {
+    padding-top: 18px !important;
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Sidebar card (left) */
+.sidebar-card {
+    background: transparent;
+    padding: 10px 8px 30px 8px;
+}
+
+/* Titles */
+.app-title {
+    font-size: 28px;
+    color: #0b3b54;
+    margin: 6px 0;
+}
+.app-sub {
+    color: #4b6b73;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+/* small spacer */
+.spacer {
+    height: 10px;
+}
+
+/* labels */
+.label {
+    font-weight: 600;
+    color: #20343a;
+    margin-bottom: 6px;
+}
+
+/* ---------- Conversation card (right) ---------- */
+.conv-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 18px;
+    border: 1px solid #eef2f4;
+}
+
+/* Chat area */
+.chat-box {
+    height: 520px;
+    overflow-y: auto;
+    padding: 18px;
+    background: #fbfdff;
+    border-radius: 8px;
+}
+
+/* Message rows - simple spacing */
+.msg-row {
+    display: flex;
+    margin-bottom: 12px;
+}
+
+/* User row aligns to right */
+.user-row {
+    justify-content: flex-end;
+}
+
+/* Bot row aligns left */
+.bot-row {
+    justify-content: flex-start;
+}
+
+/* Bubble general */
+.bubble {
+    padding: 14px 18px;
+    border-radius: 12px;
+    max-width: 66%;
+    font-size: 15px;
+    line-height: 1.4;
+    box-shadow: 0 2px 8px rgba(18, 35, 47, 0.04);
+}
+
+/* User bubble (blue, right) - short */
+.user-bubble {
+    background: #1e90ff;
+    color: #ffffff;
+    border-bottom-right-radius: 4px;
+}
+
+/* Bot bubble (light) - left */
+.bot-bubble {
+    background: #f3f6f7;
+    color: #0f1720;
+    border-bottom-left-radius: 4px;
+}
+
+/* Input area under chat */
+.input-area {
+    margin-top: 14px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Streamlit text input override */
+.stTextInput > div > div > input {
+    border-radius: 12px !important;
+    padding: 14px !important;
+    border: 1px solid #e1e7ea !important;
+    font-size: 15px;
+    background: #ffffff !important;
+}
+
+/* Buttons */
+.stButton > button {
+    background-color: #1e90ff !important;
+    color: white !important;
+    border-radius: 10px !important;
+    padding: 10px 18px !important;
+    font-size: 15px;
+}
+
+/* small responsive */
+@media (max-width: 900px) {
+    .chat-box { height: 420px; }
+    .bubble { max-width: 80%; }
+}
+
+
+---
+
+How to use
+
+1. Put app.py and style.css in your project root (or put style.css in static/ — loader checks that too).
+
+
+2. Keep your models/ and data/ folders unchanged.
+
+
+3. Run: streamlit run app.py
+
+
+
+
+---
+
+If you want the left-side helper input removed (I added a small left_helper input so the left column visually matches the screenshot), I can remove it — logic will remain the same.
+
+Would you like me to also add user/bot avatar images inside bubbles (I can add them via base64 so they always appear), or is this layout good?
