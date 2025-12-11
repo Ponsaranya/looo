@@ -1,0 +1,410 @@
+Great — below are the two complete files you asked for. I kept all your logic exactly the same (DB, models, FAQ/recommendation flow, save/load behavior). I only added styling and image display.
+
+Place files like this:
+
+app.py (root)
+
+style.css (root, next to app.py)
+
+static/user.png (user avatar you downloaded)
+
+static/bot.jfif (bot avatar you downloaded)
+
+models/ and data/ unchanged
+
+
+
+---
+
+style.css
+
+Save this as style.css in the same folder as app.py.
+
+/* style.css - Clean, light, professional UI */
+
+/* Page & font */
+body {
+  background-color: #f4f7fb;
+  font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+}
+
+/* Main card to center content */
+.main-card {
+  max-width: 1000px;
+  margin: 24px auto;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 6px 22px rgba(15, 23, 30, 0.06);
+}
+
+/* Header */
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.app-title {
+  color: #0b3b54;
+  font-size: 28px;
+  font-weight: 700;
+}
+.app-subtitle {
+  color: #546b73;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* Layout columns */
+.row {
+  display: flex;
+  gap: 18px;
+}
+
+/* Left (chat) */
+.chat-column {
+  flex: 3;
+}
+.right-column {
+  flex: 1;
+}
+
+/* Chat box */
+.chat-box {
+  background: #fff;
+  border: 1px solid #e6eaed;
+  border-radius: 12px;
+  padding: 16px;
+  height: 520px;
+  overflow-y: auto;
+}
+
+/* Message row */
+.message-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+/* Avatar */
+.msg-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* Message bubble wrapper; for alignment */
+.msg-content {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sender label */
+.sender-label {
+  font-weight: 600;
+  font-size: 12px;
+  color: #254047;
+  margin-bottom: 6px;
+}
+
+/* Bubbles */
+.user-bubble {
+  background: #e6f0ff;
+  color: #062433;
+  padding: 12px 14px;
+  border-radius: 10px;
+  max-width: 78%;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.bot-bubble {
+  background: #f3f5f6;
+  color: #062433;
+  padding: 12px 14px;
+  border-radius: 10px;
+  max-width: 78%;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+/* Right column controls card */
+.controls {
+  background: #ffffff;
+  border: 1px solid #e6eaed;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+/* Input styling override (Streamlit input) */
+.stTextInput > div > div > input {
+  background-color: #ffffff !important;
+  border-radius: 8px !important;
+  border: 1px solid #c9d2d6 !important;
+  padding: 10px !important;
+}
+
+/* Buttons */
+.stButton > button {
+  background-color: #0b3b54 !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+  padding: 8px 18px !important;
+  border: none !important;
+}
+.stButton > button:hover {
+  background-color: #092f41 !important;
+}
+
+/* Minor responsive */
+@media (max-width: 880px) {
+  .row { flex-direction: column; }
+  .chat-box { height: 420px; }
+}
+
+
+---
+
+app.py
+
+Save this as app.py (replace your current file). Logic remains unchanged.
+
+import streamlit as st
+import pandas as pd
+import pickle
+import sqlite3
+import os
+
+# -------------------------
+# IMPORT MODULES
+# -------------------------
+from utils.recommendation_engine import get_recommendation
+from utils.faq_engine import get_faq_answer
+
+# -------------------------
+# DATABASE SETUP
+# -------------------------
+DB_PATH = "chat_history.db"
+
+def init_db():
+    """Initialize the SQLite DB and create table if not exists."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS chat (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender TEXT,
+            message TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def save_to_db(sender, message):
+    """Save a message to the DB."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO chat (sender, message) VALUES (?, ?)", (sender, message))
+    conn.commit()
+    conn.close()
+
+def load_chat_history():
+    """Load previous chat from DB."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT sender, message FROM chat ORDER BY timestamp ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+# Initialize DB
+init_db()
+
+# -------------------------
+# LOAD FAQ MODEL FILES
+# -------------------------
+vectorizer = pickle.load(open("models/vectorizer.pkl", "rb"))
+model = pickle.load(open("models/model.pkl", "rb"))
+label_encoder = pickle.load(open("models/label_encoder.pkl", "rb"))
+
+df_faq = pd.read_excel("data/FAQ_dataset.xlsx")
+
+# -------------------------
+# FAQ CHATBOT RESPONSE (with confidence filtering)
+# -------------------------
+def chatbot_faq(user_query):
+    try:
+        query_vec = vectorizer.transform([user_query])
+        probs = model.predict_proba(query_vec)[0]
+        max_prob = max(probs)
+
+        if max_prob < 0.40:
+            return None
+
+        pred = model.predict(query_vec)[0]
+        intent = label_encoder.inverse_transform([pred])[0]
+        answers = df_faq[df_faq["intent"] == intent]["answer"]
+
+        if answers.empty:
+            return None
+
+        return answers.sample(1).values[0]
+
+    except Exception as e:
+        print("FAQ Engine Error:", e)
+        return None
+
+# -------------------------
+# STREAMLIT UI (load CSS + images)
+# -------------------------
+st.set_page_config(page_title="Banking Chatbot", layout="wide")
+
+# Load external CSS (style.css must be next to app.py)
+css_path = "style.css"
+if os.path.exists(css_path):
+    with open(css_path, "r", encoding="utf-8") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+else:
+    st.warning("style.css not found. Please put style.css next to app.py")
+
+# Header with optional logo
+logo_path = os.path.join("static", "logo.png")  # optional
+col_l, col_r = st.columns([1, 8])
+with col_l:
+    if os.path.exists(logo_path):
+        st.image(logo_path, width=84)
+with col_r:
+    st.markdown('<div class="app-title">Banking Chatbot</div>', unsafe_allow_html=True)
+    st.markdown('<div class="app-subtitle">Ask about banking and product suggestions</div>', unsafe_allow_html=True)
+
+# -------------------------
+# CHAT HISTORY
+# -------------------------
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = load_chat_history()
+
+# -------------------------
+# LAYOUT: left chat, right controls
+# -------------------------
+st.markdown('<div class="main-card">', unsafe_allow_html=True)
+st.markdown('<div class="row">', unsafe_allow_html=True)
+
+# Left column (chat)
+st.markdown('<div class="chat-column">', unsafe_allow_html=True)
+st.markdown('<div class="chat-box">', unsafe_allow_html=True)
+
+# Show messages using avatars (static/user.png and static/bot.jfif)
+user_avatar = "static/user.png"
+bot_avatar = "static/bot.jfif"
+
+for sender, message in st.session_state.chat_history:
+    if sender == "You":
+        avatar_tag = f'<img src="{user_avatar}" class="msg-avatar">' if os.path.exists(user_avatar) else ''
+        st.markdown(
+            f'''
+            <div class="message-row">
+              {avatar_tag}
+              <div class="msg-content">
+                <div class="sender-label">You</div>
+                <div class="user-bubble">{message}</div>
+              </div>
+            </div>
+            ''',
+            unsafe_allow_html=True
+        )
+    else:
+        avatar_tag = f'<img src="{bot_avatar}" class="msg-avatar">' if os.path.exists(bot_avatar) else ''
+        st.markdown(
+            f'''
+            <div class="message-row">
+              {avatar_tag}
+              <div class="msg-content">
+                <div class="sender-label">Bot</div>
+                <div class="bot-bubble">{message}</div>
+              </div>
+            </div>
+            ''',
+            unsafe_allow_html=True
+        )
+
+st.markdown('</div>', unsafe_allow_html=True)  # close chat-box
+st.markdown('</div>', unsafe_allow_html=True)  # close chat-column
+
+# Right column (controls)
+st.markdown('<div class="right-column">', unsafe_allow_html=True)
+st.markdown('<div class="controls">', unsafe_allow_html=True)
+
+user_input = st.text_input("Enter your message:", key="user_input")
+
+if st.button("Reset Chat"):
+    st.session_state.chat_history = []
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM chat")
+    conn.commit()
+    conn.close()
+    st.experimental_rerun()
+
+if st.button("Send"):
+    if user_input and user_input.strip() != "":
+        # 1) Recommendation engine first (same keywords)
+        if ("suggest" in user_input.lower()) or ("recommend" in user_input.lower()):
+            bot_reply = get_recommendation(user_input)
+        else:
+            # 2) Try FAQ
+            bot_reply = chatbot_faq(user_input)
+            # 3) Fallback
+            if bot_reply is None:
+                bot_reply = "Please ask something related to banking and Product suggestions."
+
+        # Save chat history in session
+        st.session_state.chat_history.append(("You", user_input))
+        st.session_state.chat_history.append(("Bot", bot_reply))
+
+        # Save to database
+        save_to_db("You", user_input)
+        save_to_db("Bot", bot_reply)
+
+        # refresh UI
+        st.experimental_rerun()
+
+st.markdown('</div>', unsafe_allow_html=True)  # close controls
+st.markdown('</div>', unsafe_allow_html=True)  # close right-column
+
+st.markdown('</div>', unsafe_allow_html=True)  # close row
+st.markdown('</div>', unsafe_allow_html=True)  # close main-card
+
+
+---
+
+Quick checklist (before running)
+
+1. Put style.css next to app.py.
+
+
+2. Create folder static/ and put:
+
+static/user.png (user avatar)
+
+static/bot.jfif (bot avatar)
+
+optional static/logo.png if you want a header logo.
+
+
+
+3. Keep your models/ and data/ folders unchanged.
+
+
+4. Run: streamlit run app.py
+
+
+
+
+---
+
+If you want any tiny visual tweaks (bubble colors, spacing, smaller avatars, right-aligned user bubbles), tell me which and I’ll produce a modified style.css only.
