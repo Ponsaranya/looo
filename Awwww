@@ -1,0 +1,392 @@
+Perfect — below I’ll give you exactly what to do.
+
+1. a ready-to-use style.css file (put this in the same folder as app.py),
+
+
+2. a modified app.py that does not change any logic (DB, FAQ, recommendation, save/load behavior remain exactly the same) and loads the external CSS and shows an optional logo image, and
+
+
+3. short instructions on where to place images and how to change names if you want.
+
+
+
+
+---
+
+1) style.css (create this file next to app.py)
+
+Save the content below in a file named style.css in the same directory as app.py.
+
+/* style.css - clean, neutral UI (no emojis) */
+
+/* Page background */
+.reportview-container, .main {
+    background-color: #F7F8F9;
+}
+
+/* Title styling */
+.app-title {
+    color: #2B3840;
+    font-weight: 600;
+    font-size: 28px;
+    margin-bottom: 6px;
+}
+.app-subtitle {
+    color: #4B5B63;
+    margin-bottom: 18px;
+}
+
+/* Chat container */
+.chat-box {
+    background: #FFFFFF;
+    padding: 18px;
+    border-radius: 12px;
+    border: 1px solid #E6E9EB;
+    height: 520px;
+    overflow-y: auto;
+}
+
+/* Message styles */
+.user-message {
+    background: #EAF1FF;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    display: inline-block;
+    max-width: 78%;
+    font-size: 15px;
+    color: #0F1720;
+}
+
+.bot-message {
+    background: #F4F6F7;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    display: inline-block;
+    max-width: 78%;
+    font-size: 15px;
+    color: #0F1720;
+}
+
+/* Sender label above each message */
+.sender-label {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 6px;
+    color: #21303A;
+}
+
+/* Input box */
+.stTextInput>div>div>input {
+    background-color: #FFFFFF;
+    border-radius: 8px;
+    border: 1px solid #D1D5D8;
+    padding: 10px;
+}
+
+/* Buttons */
+.stButton>button {
+    background-color: #2B3840;
+    color: white;
+    border-radius: 8px;
+    padding: 8px 18px;
+    border: none;
+}
+.stButton>button:hover {
+    background-color: #1f2830;
+}
+
+/* Right column card */
+.control-card {
+    background: #FFFFFF;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid #E6E9EB;
+}
+
+/* Reduce Streamlit spacing around elements slightly */
+.block-container {
+    padding-top: 18px;
+    padding-left: 22px;
+    padding-right: 22px;
+}
+
+/* Logo container */
+.logo-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.logo-img {
+    border-radius: 8px;
+}
+
+/* Small note text */
+.small-note {
+    color: #56646C;
+    font-size: 13px;
+    margin-top: 8px;
+}
+
+
+---
+
+2) app.py (replace your current file with this — logic unchanged)
+
+This version:
+
+Loads style.css at start.
+
+Displays an optional logo image from assets/logo.png if present.
+
+Keeps the DB, model, FAQ, recommendation, and save/load logic exactly as you had it.
+
+Removes emojis from title/subtitle.
+
+Uses the same classes defined in style.css.
+
+
+import streamlit as st
+import pandas as pd
+import pickle
+import sqlite3
+import os
+
+# -------------------------
+# IMPORT MODULES
+# -------------------------
+from utils.recommendation_engine import get_recommendation
+from utils.faq_engine import get_faq_answer
+
+# -------------------------
+# DATABASE SETUP
+# -------------------------
+DB_PATH = "chat_history.db"
+
+def init_db():
+    """Initialize the SQLite DB and create table if not exists."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS chat (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender TEXT,
+            message TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def save_to_db(sender, message):
+    """Save a message to the DB."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO chat (sender, message) VALUES (?, ?)", (sender, message))
+    conn.commit()
+    conn.close()
+
+def load_chat_history():
+    """Load previous chat from DB."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT sender, message FROM chat ORDER BY timestamp ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+# Initialize DB
+init_db()
+
+# -------------------------
+# LOAD FAQ MODEL FILES
+# -------------------------
+vectorizer = pickle.load(open("models/vectorizer.pkl", "rb"))
+model = pickle.load(open("models/model.pkl", "rb"))
+label_encoder = pickle.load(open("models/label_encoder.pkl", "rb"))
+
+df_faq = pd.read_excel("data/FAQ_dataset.xlsx")
+
+# -------------------------
+# FAQ CHATBOT RESPONSE (with confidence filtering)
+# -------------------------
+def chatbot_faq(user_query):
+    try:
+        query_vec = vectorizer.transform([user_query])
+        probs = model.predict_proba(query_vec)[0]
+        max_prob = max(probs)
+
+        if max_prob < 0.40:
+            return None
+
+        pred = model.predict(query_vec)[0]
+        intent = label_encoder.inverse_transform([pred])[0]
+        answers = df_faq[df_faq["intent"] == intent]["answer"]
+
+        if answers.empty:
+            return None
+
+        return answers.sample(1).values[0]
+
+    except Exception as e:
+        print("FAQ Engine Error:", e)
+        return None
+
+# -------------------------
+# STREAMLIT UI (load external CSS + logo)
+# -------------------------
+st.set_page_config(page_title="Banking Chatbot", layout="wide")
+
+# Load external CSS (style.css must be in same folder)
+css_path = "style.css"
+if os.path.exists(css_path):
+    with open(css_path, "r", encoding="utf-8") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+else:
+    # Fallback: small inline style if file missing (keeps UI usable)
+    st.markdown("""
+    <style>
+    .app-title { font-size: 26px; font-weight:600; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# Optional: show a logo if available
+logo_path = os.path.join("assets", "logo.png")  # put logo at ./assets/logo.png
+if os.path.exists(logo_path):
+    # show logo and title in a horizontal layout
+    col1, col2 = st.columns([1, 8])
+    with col1:
+        st.image(logo_path, width=96, output_format="PNG")
+    with col2:
+        st.markdown('<div class="app-title">Banking Chatbot</div>', unsafe_allow_html=True)
+        st.markdown('<div class="app-subtitle">Ask about banking and product suggestions</div>', unsafe_allow_html=True)
+else:
+    # no logo — just show title
+    st.markdown('<div class="app-title">Banking Chatbot</div>', unsafe_allow_html=True)
+    st.markdown('<div class="app-subtitle">Ask about banking and product suggestions</div>', unsafe_allow_html=True)
+
+# -------------------------
+# CHAT HISTORY (load if not present)
+# -------------------------
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = load_chat_history()
+
+# -------------------------
+# MAIN LAYOUT: left = chat, right = controls
+# -------------------------
+left_col, right_col = st.columns([3, 1])
+
+with left_col:
+    st.markdown("### Conversation")
+    st.markdown('<div class="chat-box">', unsafe_allow_html=True)
+
+    # Display messages (same format as before, but using CSS classes)
+    for sender, message in st.session_state.chat_history:
+        if sender == "You":
+            st.markdown('<div class="sender-label">You</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="user-message">{message}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="sender-label">Bot</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="bot-message">{message}</div>', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with right_col:
+    st.markdown('<div class="control-card">', unsafe_allow_html=True)
+    st.markdown("### Enter message")
+    user_input = st.text_input("", key="user_input")
+
+    send_clicked = st.button("Send")
+    reset_clicked = st.button("Reset Chat")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# -------------------------
+# RESET LOGIC (same behavior)
+# -------------------------
+if reset_clicked:
+    st.session_state.chat_history = []
+    # Clear DB as well
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM chat")
+    conn.commit()
+    conn.close()
+    st.experimental_rerun()
+
+# -------------------------
+# SEND LOGIC (same behavior)
+# -------------------------
+if send_clicked:
+    if user_input and user_input.strip() != "":
+        # 1) Recommendation engine first (same keywords)
+        if ("suggest" in user_input.lower()) or ("recommend" in user_input.lower()):
+            bot_reply = get_recommendation(user_input)
+        else:
+            # 2) Try FAQ
+            bot_reply = chatbot_faq(user_input)
+            # 3) Fallback
+            if bot_reply is None:
+                bot_reply = "Please ask something related to banking and Product suggestions."
+
+        # Save chat history in session
+        st.session_state.chat_history.append(("You", user_input))
+        st.session_state.chat_history.append(("Bot", bot_reply))
+
+        # Save to database
+        save_to_db("You", user_input)
+        save_to_db("Bot", bot_reply)
+
+        # Clear input and rerun to update UI
+        st.session_state.user_input = ""
+        st.experimental_rerun()
+
+
+---
+
+3) Where to put images (optional)
+
+Create a folder named assets next to app.py.
+
+Put your logo as assets/logo.png. (You can use JPG/PNG; change logo_path in app.py if you choose a different name.)
+
+The app will show the logo if that file exists. No other changes are required.
+
+
+If you want message avatars (user / bot images next to every message), I can add those—but it requires either embedding images inline via base64 or using HTML layout for each message. Tell me if you want avatars and I’ll add that (still without changing logic).
+
+
+---
+
+Quick checklist before running
+
+1. app.py (use the provided file)
+
+
+2. style.css (in same folder)
+
+
+3. optional assets/logo.png (if you want a header logo)
+
+
+4. models/ and data/ folders remain in place (unchanged)
+
+
+5. Run: streamlit run app.py
+
+
+
+
+---
+
+If you want, I can:
+
+Provide an avatar version (left/right aligned chat bubbles), or
+
+Show step-by-step to add avatars (HTML + base64), or
+
+Give a tiny script to generate a placeholder logo.
+
+
+Which of these would you like next?
