@@ -1,0 +1,116 @@
+import streamlit as st
+import pandas as pd
+import pickle
+import sqlite3
+# -------------------------
+# IMPORT MODULES
+# -------------------------
+from utils.recommendation_engine import get_recommendation
+from utils.faq_engine import get_faq_answer
+ 
+ 
+# -------------------------
+# LOAD FAQ MODEL FILES
+# -------------------------
+vectorizer = pickle.load(open("models/vectorizer.pkl", "rb"))
+model = pickle.load(open("models/model.pkl", "rb"))
+label_encoder = pickle.load(open("models/label_encoder.pkl", "rb"))
+ 
+df_faq = pd.read_excel("data/FAQ_dataset.xlsx")
+
+# -------------------------
+# FAQ CHATBOT RESPONSE (with confidence filtering)
+# -------------------------
+def chatbot_faq(user_query):
+    try:
+        # Convert to vector
+        query_vec = vectorizer.transform([user_query])
+ 
+        # Get prediction confidence
+        probs = model.predict_proba(query_vec)[0]
+        max_prob = max(probs)
+ 
+        # If model is unsure, fallback
+        if max_prob < 0.40:
+            return None
+ 
+        # Predict intent
+        pred = model.predict(query_vec)[0]
+        intent = label_encoder.inverse_transform([pred])[0]
+ 
+        # Get answer from dataset
+        answers = df_faq[df_faq["intent"] == intent]["answer"]
+ 
+        if answers.empty:
+            return None
+ 
+        return answers.sample(1).values[0]
+ 
+    except Exception as e:
+        print("FAQ Engine Error:", e)
+        return None
+ 
+ 
+# -------------------------
+# STREAMLIT UI
+# -------------------------
+st.set_page_config(page_title="Banking Chatbot", page_icon="🏦", layout="centered")
+ 
+st.title("🏦 Banking Chatbot")
+st.write("Ask me anything about banking and Product suggestions")
+ 
+ 
+# -------------------------
+# CHAT HISTORY
+# -------------------------
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+ 
+ 
+# -------------------------
+# RESET CHAT BUTTON
+# -------------------------
+if st.button("Reset Chat"):
+    st.session_state.chat_history = []
+    st.rerun()
+ 
+ 
+# -------------------------
+# USER INPUT BOX
+# -------------------------
+user_input = st.text_input("Enter your message:")
+ 
+ 
+# -------------------------
+# PROCESS USER MESSAGE
+# -------------------------
+if st.button("Send"):
+    if user_input.strip() != "":
+ 
+        # 1️⃣ RECOMMENDATION ENGINE FIRST
+        if ("suggest" in user_input.lower()) or ("recommend" in user_input.lower()):
+            bot_reply = get_recommendation(user_input)
+ 
+        else:
+            # 2️⃣ TRY FAQ
+            bot_reply = chatbot_faq(user_input)
+ 
+            # 3️⃣ FALLBACK
+            if bot_reply is None:
+                bot_reply = "Please ask something related to banking and Product suggestions."
+ 
+        # Save chat history
+        st.session_state.chat_history.append(("You", user_input))
+        st.session_state.chat_history.append(("Bot", bot_reply))
+ 
+ 
+# -------------------------
+# DISPLAY CHAT HISTORY
+# -------------------------
+st.write("### 💬 Conversation")
+ 
+for sender, message in st.session_state.chat_history:
+    if sender == "You":
+        st.markdown(f"**🧑‍💼 {sender}:** {message}")
+    else:
+        st.markdown(f"**🤖 {sender}:** {message}")
