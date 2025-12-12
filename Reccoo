@@ -1,0 +1,79 @@
+import pandas as pd
+from sklearn.cluster import KMeans
+
+# ===============================
+# Load and preprocess the dataset
+# ===============================
+df_rec = pd.read_csv("customer_data.csv")
+
+# Fill missing values to prevent "No information" issues
+df_rec['Loan_type'] = df_rec['Loan_type'].fillna("No_Loan")
+df_rec['savings_plan_type'] = df_rec['savings_plan_type'].fillna("No_Savings")
+df_rec['investment_type'] = df_rec['investment_type'].fillna("No_Investment")
+df_rec['credit_cardtype'] = df_rec['credit_cardtype'].fillna("No_Credit")
+
+# Select features for clustering (numerical or encoded columns)
+# Example: Age, Income, Spending_Score (adjust as per your dataset)
+features = ['Age', 'Income', 'Spending_Score']
+X = df_rec[features]
+
+# Number of clusters
+n_clusters = 5
+kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+df_rec['cluster'] = kmeans.fit_predict(X)
+
+# ===============================
+# Recommendation function
+# ===============================
+def get_recommendation(customer_id, recommendation_type):
+    """
+    Returns recommendation for a customer based on clustering.
+    recommendation_type = "loan", "savings", "investment", "credit card"
+    """
+    # Check if customer exists
+    if customer_id not in df_rec['Customer_ID'].values:
+        return f"Customer ID {customer_id} not found."
+    
+    # Find customer's cluster
+    cluster_id = df_rec.loc[df_rec['Customer_ID'] == customer_id, 'cluster'].values[0]
+    
+    # Map recommendation_type to column name
+    column_map = {
+        "loan": "Loan_type",
+        "savings": "savings_plan_type",
+        "investment": "investment_type",
+        "credit card": "credit_cardtype"
+    }
+    
+    if recommendation_type not in column_map:
+        return "Invalid recommendation type. Choose from: loan, savings, investment, credit card"
+    
+    column = column_map[recommendation_type]
+    
+    # Get all customers in the same cluster
+    cluster_records = df_rec[df_rec['cluster'] == cluster_id]
+    
+    # Get most frequent value in that cluster
+    value_counts = cluster_records[column].value_counts()
+    
+    if value_counts.empty:
+        # Optional fallback recommendations
+        fallback_map = {
+            "loan": "Home Loan",
+            "savings": "Basic Savings Account",
+            "investment": "Mutual Fund",
+            "credit card": "Basic Card"
+        }
+        return fallback_map[recommendation_type]
+    
+    return value_counts.idxmax()
+
+# ===============================
+# Example usage
+# ===============================
+if __name__ == "__main__":
+    test_customer = "C123456"
+    print("Loan recommendation:", get_recommendation(test_customer, "loan"))
+    print("Savings recommendation:", get_recommendation(test_customer, "savings"))
+    print("Investment recommendation:", get_recommendation(test_customer, "investment"))
+    print("Credit card recommendation:", get_recommendation(test_customer, "credit card"))
