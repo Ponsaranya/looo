@@ -1,0 +1,24 @@
+import re
+
+def detect_module(text):
+    text_lower = text.lower()
+
+    parts = {
+        "faq": None,
+        "recommendation": None
+    }
+
+    has_recommend = any(word in text_lower for word in ["suggest", "recommend"])
+    has_customer = bool(re.search(r'customer\s*id|c\d+', text_lower))
+
+    if has_recommend:
+        parts["recommendation"] = text.strip()
+
+    if not has_recommend or not has_customer:
+        parts["faq"] = text.strip()
+    else:
+        cleaned_faq = re.sub(r'suggest.*|recommend.*', '', text, flags=re.IGNORECASE).strip()
+        if cleaned_faq:
+            parts["faq"] = cleaned_faq
+
+    return parts
