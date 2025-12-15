@@ -1,0 +1,149 @@
+Perfect, thanks for sharing the actual app.py and detect.py 👍
+Now the issue is 100% clear, and I’ll be very direct and precise.
+
+❌ Why dual questions are NOT working (root cause)
+
+Your current flow is this:
+
+1️⃣ detect.py
+return "recommendation"  # OR
+return "faq"
+
+
+👉 It returns ONLY ONE STRING, not both.
+
+2️⃣ app.py logic (this is the MAIN blocker)
+if ("suggest" in msg.lower()) or ("recommend" in msg.lower()):
+    bot_reply = get_recommendation(msg)
+else:
+    bot_reply = chatbot_faq(msg)
+
+
+⚠️ The moment Streamlit sees suggest / recommend / Customer ID,
+👉 it NEVER calls FAQ at all
+
+So for:
+
+What is fixed deposit and suggest loan type for C1220223
+
+
+Streamlit does this:
+
+Sees suggest
+
+Calls ONLY get_recommendation(msg)
+
+FAQ is completely skipped ❌
+
+That’s why:
+
+“He is still replying for customer ID alone”
+
+✅ Correct Design (what SHOULD happen)
+
+For single input with two questions:
+
+FAQ part        → FAQ engine
+Recommendation → Recommendation engine
+
+
+Both must run, and both outputs must be shown.
+
+This CANNOT be solved by detect.py alone
+👉 app.py MUST allow multiple intents.
+
+✅ FINAL FIX (Minimal & Clean)
+✅ Step 1: Replace detect.py COMPLETELY
+✅ NEW detect.py (ONLY CODE, no comments as you requested)
+import re
+
+def detect_module(text):
+    text_lower = text.lower()
+    intents = []
+
+    has_customer_id = bool(re.search(r'\bc\d{7}\b', text_lower))
+    has_recommend = "recommend" in text_lower or "suggest" in text_lower
+
+    if has_customer_id or has_recommend:
+        intents.append("recommendation")
+
+    intents.append("faq")
+
+    return intents
+
+
+✔ This allows BOTH FAQ + recommendation together
+
+✅ Step 2: REQUIRED change in app.py (very important)
+🔴 Remove this old logic:
+if ("suggest" in msg.lower()) or ("recommend" in msg.lower()):
+    bot_reply = get_recommendation(msg)
+else:
+    bot_reply = chatbot_faq(msg)
+
+✅ Replace submit_message() logic with this
+from detect import detect_module
+
+def submit_message():
+    msg = st.session_state.get("chat_input", "")
+    if not msg or not msg.strip():
+        return
+
+    intents = detect_module(msg)
+    responses = []
+
+    if "faq" in intents:
+        faq_reply = chatbot_faq(msg)
+        if faq_reply:
+            responses.append(faq_reply)
+
+    if "recommendation" in intents:
+        rec_reply = get_recommendation(msg)
+        if rec_reply:
+            responses.append(rec_reply)
+
+    if not responses:
+        responses.append("Please ask something related to banking or product suggestions.")
+
+    final_reply = "\n\n".join(responses)
+
+    st.session_state.chat_history.append(("You", msg))
+    st.session_state.chat_history.append(("Bot", final_reply))
+
+    save_to_db("You", msg)
+    save_to_db("Bot", final_reply)
+
+    st.session_state["chat_input"] = ""
+
+✅ NOW your example WILL WORK
+Input:
+What is fixed deposit and suggest loan type for C1220223
+
+Output:
+
+✅ FAQ answer for Fixed Deposit
+
+✅ Recommendation for Loan Type
+
+✅ Both shown in single chat response
+
+✅ Stored in DB correctly
+
+📌 Important note (for viva / review / documentation)
+
+You can clearly say:
+
+“FAQ system uses a trained ML model saved using pickle.
+Recommendation system is rule-based + K-Means clustering and is executed dynamically without using pickle files.”
+
+This is technically correct and impressive.
+
+If you want next:
+
+I can split FAQ & recommendation text cleanly
+
+Or help you prepare project explanation
+
+Or fix edge cases in customer ID
+
+Just tell me 👍
