@@ -1,0 +1,18 @@
+import re
+
+def detect_module(user_input):
+    user_input_lower = user_input.lower()
+    intents = []
+
+    customer_ids = re.findall(r'\bC\d{7}\b', user_input)
+    if customer_ids:
+        intents.append("recommendation")
+
+    if "recommend" in user_input_lower or "suggest" in user_input_lower:
+        if "recommendation" not in intents:
+            intents.append("recommendation")
+
+    if "faq" not in intents:
+        intents.append("faq")
+
+    return intents
