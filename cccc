@@ -1,0 +1,23 @@
+import re
+
+def detect_module(user_input):
+    user_input_lower = user_input.lower()
+    intents = []
+    parts = {"faq": [], "recommendation": []}
+
+    customer_ids = re.findall(r'\bC\d{7}\b', user_input)
+    if customer_ids or "recommend" in user_input_lower or "suggest" in user_input_lower:
+        intents.append("recommendation")
+        parts["recommendation"].append(user_input)
+
+    if "recommendation" in intents:
+        # remove recommendation part for FAQ
+        faq_text = re.sub(r'suggest.*C\d{7}|recommend.*C\d{7}', '', user_input, flags=re.IGNORECASE)
+        if faq_text.strip():
+            intents.append("faq")
+            parts["faq"].append(faq_text)
+    else:
+        intents.append("faq")
+        parts["faq"].append(user_input)
+
+    return intents, parts
